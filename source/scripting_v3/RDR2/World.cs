@@ -270,7 +270,7 @@ namespace RDR2
 		}
 
 		/// <summary>Gets the <see cref="Ped"/>s within <paramref name="radius"/> of <paramref name="position"/>.</summary>
-		/// <remarks>Uses the game's spatial query (itemsets); prefer this over <see cref="GetAllPeds"/> every frame.</remarks>
+		/// <remarks>Uses the game's spatial query (itemsets). Not verified in game: StreamEmber Trainer 1.0.1 called it every frame and the game window went blank while the game started. For per-frame use prefer <see cref="GetAllPeds"/> with a distance filter (pool reads run on the main script fiber).</remarks>
 		public static Ped[] GetNearbyPeds(Vector3 position, float radius)
 		{
 			List<int> handles = GetEntitiesNearPoint(position, radius, ItemsetPeds);

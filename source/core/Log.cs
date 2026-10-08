@@ -20,10 +20,19 @@ namespace RDR2DN
 
 		static string FilePath => StreamEmberLayout.LogFile;
 
+		static bool s_rotated;
+
 		public static void Clear()
 		{
 			try
 			{
+				// Once per game session: keep the previous session's log next to the new one
+				if (!s_rotated)
+				{
+					s_rotated = true;
+					if (File.Exists(FilePath))
+						File.Copy(FilePath, Path.ChangeExtension(FilePath, null) + ".previous.log", true);
+				}
 				File.WriteAllText(FilePath, string.Empty);
 			}
 			catch
