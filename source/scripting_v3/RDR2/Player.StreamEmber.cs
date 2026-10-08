@@ -74,7 +74,9 @@ namespace RDR2
 
 		static uint s_savedModelA, s_savedModelB;
 		static bool s_hasSavedModel;
+		static bool s_hasSavedModelB;
 		static uint s_lastWrittenModel;
+		static uint s_storyModel;
 
 		static readonly uint ArthurModel = Game.Joaat("Player_Zero");
 		static readonly uint JohnModel = Game.Joaat("Player_Three");
@@ -105,14 +107,21 @@ namespace RDR2
 			}
 
 			int oldPed = PLAYER.PLAYER_PED_ID();
+			// Remember Arthur or John from the ped itself (works even when the globals cannot be verified)
+			uint currentModel = ENTITY.GET_ENTITY_MODEL(oldPed);
+			if (IsStoryHash(currentModel))
+			{
+				s_storyModel = currentModel;
+			}
 			bool pedOk = TryRead(GlobalPlayerPed, out ulong pedValue) && unchecked((int)(uint)pedValue) == oldPed;
 			bool aOk = TryRead(GlobalModelA, out ulong a) && IsExpectedModel((uint)a);
 			bool bOk = TryRead(GlobalModelB, out ulong b) && IsExpectedModel((uint)b);
 
-			if (aOk && bOk && !s_hasSavedModel && IsStoryHash((uint)a))
+			if (aOk && !s_hasSavedModel && IsStoryHash((uint)a))
 			{
 				s_savedModelA = (uint)a;
-				s_savedModelB = (uint)b;
+				s_hasSavedModelB = bOk && IsStoryHash((uint)b);
+				s_savedModelB = s_hasSavedModelB ? (uint)b : 0;
 				s_hasSavedModel = true;
 			}
 
@@ -125,16 +134,17 @@ namespace RDR2
 			{
 				TryWrite(GlobalPlayerPed, unchecked((uint)newPed));
 			}
-			if (aOk && bOk)
-			{
-				TryWrite(GlobalModelA, hash);
-				TryWrite(GlobalModelB, hash);
-				s_lastWrittenModel = hash;
-			}
-			LastModelChangeSyncedGlobals = pedOk && aOk && bOk;
+			// Each global is written only when it held what we expected (story model or our last write)
+			if (aOk) TryWrite(GlobalModelA, hash);
+			if (bOk) TryWrite(GlobalModelB, hash);
+			if (aOk || bOk) s_lastWrittenModel = hash;
+			LastModelChangeSyncedGlobals = pedOk && aOk;
 
 			ENTITY.SET_ENTITY_COLLISION(newPed, true, true);
 			ENTITY.SET_ENTITY_DYNAMIC(newPed, true);
+			// A MetaPed without an outfit renders invisible / without body parts
+			PED._SET_RANDOM_OUTFIT_VARIATION(newPed, true);
+			PED._UPDATE_PED_VARIATION(newPed, false, true, true, true, false);
 			return true;
 		}
 
@@ -149,9 +159,10 @@ namespace RDR2
 				s_hasSavedModel = false;
 				return true;
 			}
-			uint target = s_hasSavedModel ? s_savedModelA : ArthurModel;
+			uint target = s_storyModel != 0 ? s_storyModel : s_hasSavedModel ? s_savedModelA : ArthurModel;
 			var model = new Model(target);
-			if (!model.Request(3000))
+			// Already loaded = no yield, so this also works from an Aborted handler
+			if (!model.IsLoaded && !model.Request(3000))
 			{
 				return false;
 			}
@@ -168,16 +179,21 @@ namespace RDR2
 			{
 				TryWrite(GlobalPlayerPed, unchecked((uint)newPed));
 			}
-			if (aOk && bOk && s_hasSavedModel)
+			if (s_hasSavedModel)
 			{
-				TryWrite(GlobalModelA, s_savedModelA);
-				TryWrite(GlobalModelB, s_savedModelB);
+				if (aOk) TryWrite(GlobalModelA, s_savedModelA);
+				if (bOk) TryWrite(GlobalModelB, s_hasSavedModelB ? s_savedModelB : s_savedModelA);
 			}
 			s_hasSavedModel = false;
+			s_hasSavedModelB = false;
 			s_lastWrittenModel = 0;
+			s_storyModel = 0;
 
 			ENTITY.SET_ENTITY_COLLISION(newPed, true, true);
 			ENTITY.SET_ENTITY_DYNAMIC(newPed, true);
+			// Default story outfit; callers re-apply saved clothes (Ped.ApplyShopItemComponents)
+			PED._EQUIP_META_PED_OUTFIT_PRESET(newPed, 0, false);
+			PED._UPDATE_PED_VARIATION(newPed, false, true, true, true, false);
 			return true;
 		}
 

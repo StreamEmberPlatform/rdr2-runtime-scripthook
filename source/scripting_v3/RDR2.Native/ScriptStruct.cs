@@ -2,7 +2,7 @@
 //
 // Script structs are arrays of 8-byte slots: an int, a float, a hash or a BOOL sits in the low 4 bytes of its slot,
 // a const char* or an entity handle uses the whole slot. Natives such as GET_PED_NEARBY_PEDS
-// ({ int size; int handles[] }), _UI_FEED_POST_SAMPLE_TOAST and _GET_SHOP_ITEM_COMPONENT_AT_INDEX need one.
+// ({ int size; 8-byte handle slots[] }), _UI_FEED_POST_SAMPLE_TOAST and _GET_SHOP_ITEM_COMPONENT_AT_INDEX need one.
 
 using System;
 using System.Collections.Generic;

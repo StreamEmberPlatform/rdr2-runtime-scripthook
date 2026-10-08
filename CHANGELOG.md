@@ -11,6 +11,9 @@ Burada yalnız kayda değer değişiklikler tutulur.
   oyunun bildirim akışı (`RDR2.UI.Feed.ShowToast`).
 - `Player.ChangeModelPersistent` / `RestoreStoryModel`: model değişince hikâye global'leri de güncellenir (yalnız doğrulanırsa).
 - `Global.Set/As` artık `uint`, `long`, `ulong` destekliyor.
+- `Screen.PlayEffect` efekti yüklenmeyi beklemeden oynatır (önce yalnız aynı karede yüklüyse oynuyor, sonra boşaltılıyordu).
+- `ChangeModelPersistent` yeni ped'e outfit verir (yoksa görünmez kalıyordu); `RestoreStoryModel` Arthur/John'u ped'in
+  kendi modelinden hatırlar (global'ler doğrulanamasa da John, John olarak döner) ve model yüklüyse beklemez.
 
 ## 1.0
 - Deneysel CLR thread modeli (ScriptHookVDotNet 3.7): `Runtime.ini` → `ThreadingModel=Thread`. Varsayılan `Fiber`:

@@ -150,12 +150,9 @@ namespace RDR2.UI
 				GRAPHICS._ANIMPOSTFX_PRELOAD_POSTFX(effectName);
 			}
 
-			if (GRAPHICS._ANIMPOSTFX_HAS_LOADED(effectName))
-			{
-				GRAPHICS.ANIMPOSTFX_PLAY(effectName);
-			}
-
-			GRAPHICS._ANIMPOSTFX_SET_TO_UNLOAD(effectName);
+			// StreamEmber: play even when the preload has not finished this frame (the game starts it once loaded);
+			// the old code played only if loaded in the same frame and then unloaded it, so most effects never showed
+			GRAPHICS.ANIMPOSTFX_PLAY(effectName);
 		}
 
 		/// <summary>

@@ -32,7 +32,7 @@ namespace RDR2
 		/// <summary>Current wind direction (unit vector).</summary>
 		public static Vector3 WindDirection => MISC.GET_WIND_DIRECTION();
 
-		/// <summary>Amount of falling snow (0..1, -1 = weather default).</summary>
+		/// <summary>Falling snow (_SET_SNOW_LEVEL). ChaosModRDR: -1 turns snowfall on, 1 turns it off.</summary>
 		public static float SnowLevel
 		{
 			set => MISC._SET_SNOW_LEVEL(value);
