@@ -659,9 +659,11 @@ namespace RDR2DN
 			}
 
 			IntPtr ownTlsContext = _getTlsContext();
-			_setTlsContext(_tlsContextOfMainThread);
 			try
 			{
+				// Inside the try: a Thread.Abort (script timeout) raised right after the switch must still restore the
+				// thread's own TLS, or the thread would exit holding the game thread's TLS array
+				_setTlsContext(_tlsContextOfMainThread);
 				task.Run();
 			}
 			finally

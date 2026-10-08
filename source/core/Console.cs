@@ -1107,7 +1107,7 @@ namespace RDR2DN
 			float w = (float)(width) / BaseWidth;
 			float h = (float)(height) / BaseHeight;
 
-			NativeFunc.InvokeInternal(0x405224591DF02025  /*GRAPHICS::DRAW_RECT*/,
+			NativeFunc.Invoke(0x405224591DF02025  /*GRAPHICS::DRAW_RECT*/,
 				(x / BaseWidth) + w * 0.5f,
 				(y / BaseHeight) + h * 0.5f,
 				w, h,
@@ -1127,12 +1127,12 @@ namespace RDR2DN
 
 		private static unsafe void DisableControlsThisFrame()
 		{
-			NativeFunc.InvokeInternal(0x5F4B6931816E599B  /*PAD::DISABLE_ALL_CONTROL_ACTIONS*/, 0);
+			NativeFunc.Invoke(0x5F4B6931816E599B  /*PAD::DISABLE_ALL_CONTROL_ACTIONS*/, 0);
 		}
 
 		private static unsafe float GetTextLength(string text)
 		{
-			NativeFunc.InvokeInternal(0xA1253A3C870B6843  /*UIDEBUG::_BG_SET_TEXT_SCALE*/, 0.35f, 0.35f);
+			NativeFunc.Invoke(0xA1253A3C870B6843  /*UIDEBUG::_BG_SET_TEXT_SCALE*/, 0.35f, 0.35f);
 			NativeFunc.PushLongString(text);
 			return (float)text.Length;
 		}
