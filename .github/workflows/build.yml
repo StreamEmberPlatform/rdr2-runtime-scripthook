@@ -3,8 +3,7 @@
 #   pull request / diğer dallar  → derle, paket artifact olarak yüklenir (sürüm 1.0.N-ci.<run>)
 #   main'e her push              → derle, v1.0.N etiketi ve GitHub Release (zip + sha256)
 #
-# ScriptHookRDR2 SDK'sı depoda yok (yeniden dağıtımı yasak): build.ps1 derleme sırasında dev-c.com'dan indirir ve
-# kullandığı dosyaları sabit SHA-256 değerleriyle doğrular. İndirme önbelleklenir.
+# Dış bağımlılık yok: ScriptHookRDR2 SDK'sının gereken iki dosyası (sdk/) depodadır.
 #
 # Sürüm: VERSION dosyası (major.minor) + o dosyanın son değiştiği commit'ten bu yana commit sayısı (patch).
 # Minör/majör artırmak = VERSION'ı değiştirip pushlamak (o commit x.y.0 olur). Ayrıntı: tools/StreamEmber.Build.psm1
@@ -47,17 +46,8 @@ jobs:
           "release=$($release.ToString().ToLower())" >> $env:GITHUB_OUTPUT
           Write-Host "Sürüm: $version (release: $release)"
 
-      - name: ScriptHookRDR2 SDK önbelleği
-        uses: actions/cache@v6
-        with:
-          path: vendor/ScriptHookRDR2_SDK_1.0.1207.73
-          key: scripthookrdr2-sdk-1.0.1207.73
-
       - name: Derle ve paketle
         shell: pwsh
-        env:
-          # İsteğe bağlı: Settings > Variables > SCRIPTHOOKRDR2_SDK_URL (dev-c.com erişilemezse kendi aynanız)
-          SCRIPTHOOKRDR2_SDK_URL: ${{ vars.SCRIPTHOOKRDR2_SDK_URL }}
         run: ./build.ps1 -Version '${{ steps.version.outputs.version }}'
 
       - name: Paket içeriği kontrolü

@@ -9,5 +9,5 @@
 - Dağıtımda `.pdb` / `.xml` olmaz; CI bunu denetler.
 - `tools/StreamEmber.Build.psm1` üç repoda (gtav-runtime-scripthook, rdr2-runtime-scripthook, ui-runtime) aynı tutulur.
 - Kullanıcıya görünen metinler Türkçe; kod, tanımlayıcılar ve kod yorumları İngilizce.
-- ScriptHookRDR2 SDK'sını depoya ekleme (yeniden dağıtımı yasak); `build.ps1` indirir ve hash'le doğrular. SDK
-  sürümü değişirse `build.ps1` içindeki `$SdkName` ve `$SdkHashes` güncellenir.
+- ScriptHookRDR2 SDK'sının yalnız kullanılan dosyaları `sdk/` içindedir (main.h, ScriptHookRDR2.lib); derleme dışarıdan
+  bir şey indirmez. `ScriptHookRDR2.dll` hiçbir pakete konmaz.

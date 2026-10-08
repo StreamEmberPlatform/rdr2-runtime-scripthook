@@ -37,9 +37,8 @@ ScriptHookRDR2DotNet ile birlikte kullanılmaz: kurulum `ScriptHookRDRDotNet.asi
   `main`'e her push yeni bir sürümdür: `v1.0.0`, `v1.0.1`, … Minör/majör artırmak için `VERSION`'ı değiştirip pushla.
 - GitHub Actions (`.github/workflows/build.yml`): her push ve PR'da derleme; `main`'de ayrıca etiket ve GitHub Release
   (`StreamEmber.Runtime.RDR2-<sürüm>.zip` + `.sha256`). Zip'in kökü = oyun klasörü.
-- ScriptHookRDR2 SDK'sı depoda yok (yeniden dağıtımı yasak). `build.ps1` onu `vendor\`, `İndirilenler` ya da
-  dev-c.com'dan alır ve kullandığı dosyaları sabit SHA-256 değerleriyle doğrular. CI'da dev-c.com erişilemezse
-  depo değişkeni `SCRIPTHOOKRDR2_SDK_URL` ile başka bir adres verilebilir.
+- Dış bağımlılık yok: ScriptHookRDR2 SDK'sının kullanılan iki dosyası (`sdk/inc/main.h`, `sdk/lib/ScriptHookRDR2.lib`)
+  depodadır (`sdk/README.md`). `ScriptHookRDR2.dll`'in kendisi dağıtılmaz; oyuncu dev-c.com'dan kurar.
 - Yerel derlemeler `-dev` ekiyle damgalanır (`1.0.5-dev`).
 - DLL'lerde: dosya ve ürün sürümü = StreamEmber sürümü; API derlemesinin `AssemblyVersion`'ı API seviyesidir (`2.2.0.0`).
 
