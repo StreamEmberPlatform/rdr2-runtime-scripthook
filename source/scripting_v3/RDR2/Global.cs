@@ -56,7 +56,7 @@ namespace RDR2
 			else if (typeof(T) == typeof(Vector3))
 			{
 				Vector3 vec = (Vector3)(object)value;
-				RDR2DN.NativeMemory.WriteVector3(address, vec.ToArray());
+				RDR2DN.NativeMemory.WriteVector3(address, new RDR2DN.NativeMemory.FVector3(vec.X, vec.Y, vec.Z));
 			}
 			else if (typeof(T).IsPrimitive || typeof(T).IsEnum)
 			{
@@ -106,7 +106,7 @@ namespace RDR2
 			if (typeof(T) == typeof(Vector3))
 			{
 				var data = RDR2DN.NativeMemory.ReadVector3(address);
-				return (T)(object)new Vector3(data[0], data[1], data[2]);
+				return (T)(object)new Vector3(data.X, data.Y, data.Z);
 			}
 
 			if (typeof(T).IsPrimitive || typeof(T).IsEnum)

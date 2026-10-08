@@ -196,7 +196,7 @@ namespace RDR2
 			{
 				Ped driver = Driver;
 
-				if (PassengerCount == 0 && !Ped.Exists(driver))
+				if (PassengerCount == 0 && (driver == null || !driver.Exists()))
 				{
 					return Array.Empty<Ped>();
 				}
@@ -209,7 +209,7 @@ namespace RDR2
 				{
 					Ped ped = GetPedInSeat((eVehicleSeat)i);
 
-					if (!Ped.Exists(ped)) { continue; }
+					if ((ped == null || !ped.Exists())) { continue; }
 
 					peds[pedIndex] = ped;
 					pedIndex++;
@@ -243,7 +243,7 @@ namespace RDR2
 				{
 					Ped ped = GetPedInSeat((eVehicleSeat)i);
 
-					if (!Ped.Exists(ped)) { continue; }
+					if ((ped == null || !ped.Exists())) { continue; }
 
 					peds[pedIndex] = ped;
 					pedIndex++;
