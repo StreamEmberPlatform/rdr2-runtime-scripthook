@@ -12,8 +12,9 @@
 // dedicated thread instead of ScriptHookRDR2's script fiber: the CLR caches stack limits per thread, and running it
 // on a fiber leads to (false) stack overflows and random runtime crashes when exceptions are dispatched. Natives are
 // then invoked with the game main thread's TLS context while that thread waits in ScriptMain.
-// Runtime.ini: ThreadingModel=Thread (default) | Fiber (the old ScriptHookRDR2DotNet behaviour).
-static bool sUseClrThread = true;
+// Runtime.ini: ThreadingModel=Fiber (default, ScriptHookRDR2DotNet behaviour) | Thread (experimental: crashed the
+// game shortly after a script started calling natives in the first in-game test, so it is opt-in only).
+static bool sUseClrThread = false;
 static LPVOID sTlsContextAddrOfGameMainThread = nullptr;
 static DWORD sGameMainThreadId = 0;
 static std::atomic_bool sGameMainThreadVarsInitialized(false);
@@ -589,26 +590,26 @@ static bool ReadUseClrThread(HMODULE hModule)
 	wchar_t path[MAX_PATH];
 	const DWORD len = GetModuleFileNameW(hModule, path, MAX_PATH);
 	if (len == 0 || len >= MAX_PATH)
-		return true;
+		return false;
 	wchar_t* slash = wcsrchr(path, L'\\');
 	if (slash == nullptr)
-		return true;
+		return false;
 	*slash = L'\0';
 	if (wcscat_s(path, MAX_PATH, L"\\StreamEmber\\Config\\Runtime.ini") != 0)
-		return true;
+		return false;
 
 	const HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (file == INVALID_HANDLE_VALUE)
-		return true;
+		return false;
 	char text[16384];
 	DWORD read = 0;
 	const BOOL ok = ReadFile(file, text, sizeof(text) - 1, &read, NULL);
 	CloseHandle(file);
 	if (!ok)
-		return true;
+		return false;
 	text[read] = '\0';
 
-	bool useThread = true;
+	bool useThread = false;
 	for (char* line = text; line != nullptr && *line != '\0'; )
 	{
 		char* next = strchr(line, '\n');
@@ -624,7 +625,7 @@ static bool ReadUseClrThread(HMODULE hModule)
 				++value;
 				while (*value == ' ' || *value == '\t' || *value == '"')
 					++value;
-				useThread = _strnicmp(value, "Fiber", 5) != 0;
+				useThread = _strnicmp(value, "Thread", 6) == 0;
 			}
 		}
 		line = next;

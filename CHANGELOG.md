@@ -4,9 +4,9 @@ Sürümler `VERSION` (major.minor) + commit sayısı (patch) ile otomatik verili
 Burada yalnız kayda değer değişiklikler tutulur.
 
 ## 1.0
-- Managed kod ayrı bir CLR thread'inde çalışır (ScriptHookVDotNet 3.7 modeli); native'ler doğrudan, oyun thread'inin
-  TLS bağlamıyla çağrılır. Fiber kaynaklı rastgele çökmeler ve checkpoint/görev tekrarında runtime'ın kopması
-  giderildi. `Runtime.ini` → `ThreadingModel=Fiber` eski davranışa döner.
+- Deneysel CLR thread modeli (ScriptHookVDotNet 3.7): `Runtime.ini` → `ThreadingModel=Thread`. Varsayılan `Fiber`:
+  ilk oyun testinde Thread modeli scriptler başladıktan kısa süre sonra oyunu kapattı.
+- Scriptler `ScriptsLocation` klasöründen (`StreamEmber\Scripts`) yüklenir.
 - `World.GetAllPeds/Vehicles/Objects` artık oyunun durumunu bozmuyor (uzun oyunda varlıkların "kaybolması" düzeldi);
   yeni `World.GetNearbyPeds/Vehicles/Props`.
 - İlk StreamEmber dağıtımı: `StreamEmber.Runtime.RDR2.asi` + `StreamEmber.Scripting.RDR2.dll`, `StreamEmber\` klasör
