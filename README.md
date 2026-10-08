@@ -10,7 +10,7 @@ RDR2.exe
  └─ ScriptHookRDR2.dll           Alexander Blade (dev-c.com) — native çağrılar, script fiber'ları (ayrıca kurulur)
      └─ StreamEmber.Runtime.RDR2.asi            bu repo: .NET çalışma ortamı
          └─ StreamEmber.Scripting.RDR2.dll      bu repo: scriptlerin API'si (namespace RDR2)
-             └─ StreamEmber\Scripts\*.dll       scriptler (ör. ui-runtime trainer'ı)
+             └─ StreamEmber\Scripts\*.dll       scriptler (ör. StreamEmber Trainer: rdr2-trainer-scripthook)
 ```
 
 ## Oyun klasöründeki düzen
