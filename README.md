@@ -66,6 +66,9 @@ Visual Studio 2022+ ("Desktop development with C++" + C++/CLI desteği), .NET Fr
 | Değişiklik | Neden |
 |---|---|
 | Adlar ve klasör düzeni (`StreamEmberLayout.cs`), `.pdb`/`.xml` yok, sürüm kaynağı (`.rc`) | StreamEmber dağıtımı |
+| **Ayrı CLR thread'i** (ScriptHookVDotNet 3.7 modeli): managed kod ScriptHookRDR2'nin fiber'ında değil kendi thread'inde çalışır; native'ler script thread'inden oyun thread'inin TLS bağlamıyla doğrudan çağrılır. `Runtime.ini` → `ThreadingModel=Fiber` eski davranış | Fiber üzerinde CLR'ın sahte stack overflow'ları ve rastgele çökmeleri (scripthookvdotnet#976); checkpoint/görev tekrarında runtime'ın bir daha bağlanmaması (upstream #17); her native çağrısında thread devri (yavaş) |
+| `World.GetAllPeds/Vehicles/Objects` ScriptHookRDR2 havuz fonksiyonlarını native'lerin çalıştığı yerde çağırır | Script thread'inden çağrılınca oyunun thread durumu bozuluyordu: rastgele erişim ihlalleri, bir süre sonra hep boş sonuç (upstream #2; "uzun oynayınca/çok NPC ölünce kimse bulunamıyor") |
+| `World.GetNearbyPeds/Vehicles/Props` (oyunun kendi uzamsal sorgusu, itemset) | Her kare "etrafımdaki varlıklar" için tüm havuzu dolaşmadan; itemset her durumda serbest bırakılır |
 | Derleme düzeltmesi (`Global.cs` FVector3, `Vehicle.cs` `Exists`) | Upstream HEAD derlenmiyordu |
 | Klavye mesajları pencere thread'inde kuyruğa alınır, script fiber'ında işlenir | Konsol ve domain pencere thread'inden çağrılıyordu |
 | Init / Tick / klavye sınırında try/catch, kısıtlı log | Sızan managed exception oyunu kapatıyordu |
@@ -75,8 +78,6 @@ Visual Studio 2022+ ("Desktop development with C++" + C++/CLI desteği), .NET Fr
 | `StringToCoTaskMemUTF8` → `AllocCoTaskMem` | Heap uyuşmazlığı |
 | Script thread'leri arka plan thread'i, `Console.DoTick` hata yakalar, `Global` boş işaretçi kontrolü | Kapanış ve çökme güvenliği |
 
-Bilinen, yapılmamış iş: managed kod ScriptHook fiber'ında çalışıyor (SHVDN #976 benzeri). Kalıcı çözüm SHVDN 3.7'deki
-gibi ayrı CLR thread'i + TLS takası.
 
 ## Lisans
 

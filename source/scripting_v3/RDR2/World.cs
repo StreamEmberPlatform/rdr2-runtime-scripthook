@@ -147,88 +147,172 @@ namespace RDR2
 
 		#region Entities
 
+		// StreamEmber: pool reads go through RDR2DN.NativeMemory.GetPoolHandles, which runs ScriptHookRDR2's
+		// worldGetAll* where natives run (game thread / its TLS context). Called from script threads directly, as
+		// before, they corrupted the game's per-thread state: random crashes and, sooner or later, empty results for
+		// the rest of the session (Halen84/ScriptHookRDR2DotNet-V2#2). For "around a point" prefer GetNearby*, which
+		// uses the game's own spatial query (itemsets) and touches only nearby entities.
+		private const int PoolBufferSize = 2048;
+
+		private static int[] GetPoolHandles(RDR2DN.NativeMemory.PoolKind kind)
+		{
+			int[] buffer = new int[PoolBufferSize];
+			int count = RDR2DN.NativeMemory.GetPoolHandles(kind, buffer);
+			if (count <= 0)
+			{
+				return Array.Empty<int>();
+			}
+			if (count == buffer.Length)
+			{
+				return buffer;
+			}
+			int[] result = new int[count];
+			Array.Copy(buffer, result, count);
+			return result;
+		}
+
 		/// <summary>
 		/// Gets all <see cref="Ped"/>'s currently spawned/loaded in the game world
 		/// </summary>
 		/// <returns><see cref="Array"/> of all <see cref="Ped"/>'s found</returns>
-		/// <remarks><u>Note: This function can return <see cref="Array.Empty{T}"/> if the internal call to worldGetAllPeds() fails</u></remarks>
-		[HandleProcessCorruptedStateExceptions]
+		/// <remarks>Returns <see cref="Array.Empty{T}"/> if ScriptHookRDR2 fails to read the pool.</remarks>
 		public static Ped[] GetAllPeds()
 		{
-			int[] peds = new int[1024];
-			int count = 0;
-
-			// So for some reason, ScriptHookRDR2 likes to error at random when accessing pools so
-			// we'll wrap this in a try catch and return empty if the call fails and prevent a crash.
-			// https://github.com/Halen84/ScriptHookRDR2DotNet-V2/issues/2
-			try
-			{
-				count = RDR2DN.NativeMemory.worldGetAllPeds(peds, 1024);
-			}
-			catch
-			{
-				return Array.Empty<Ped>();
-			}
-
-			List<Ped> Peds = new List<Ped>();
-			for (int i = 0; i < count; i++)
-				Peds.Add(new Ped(peds[i]));
-
-			return Peds.ToArray();
+			int[] handles = GetPoolHandles(RDR2DN.NativeMemory.PoolKind.Peds);
+			var peds = new Ped[handles.Length];
+			for (int i = 0; i < handles.Length; i++)
+				peds[i] = new Ped(handles[i]);
+			return peds;
 		}
 
 		/// <summary>
 		/// Gets all <see cref="Vehicle"/>'s currently spawned/loaded in the game world
 		/// </summary>
 		/// <returns><see cref="Array"/> of all <see cref="Vehicle"/>'s found</returns>
-		/// <remarks><u>Note: This function can return <see cref="Array.Empty{T}"/> if the internal call to worldGetAllVehicles() fails</u></remarks>
-		[HandleProcessCorruptedStateExceptions]
+		/// <remarks>Returns <see cref="Array.Empty{T}"/> if ScriptHookRDR2 fails to read the pool.</remarks>
 		public static Vehicle[] GetAllVehicles()
 		{
-			int[] vehs = new int[1024];
-			int count = 0;
-
-			try
-			{
-				count = RDR2DN.NativeMemory.worldGetAllVehicles(vehs, 1024);
-			}
-			catch
-			{
-				return Array.Empty<Vehicle>();
-			}
-
-			List<Vehicle> Vehs = new List<Vehicle>();
-			for (int i = 0; i < count; i++)
-				Vehs.Add(new Vehicle(vehs[i]));
-
-			return Vehs.ToArray();
+			int[] handles = GetPoolHandles(RDR2DN.NativeMemory.PoolKind.Vehicles);
+			var vehicles = new Vehicle[handles.Length];
+			for (int i = 0; i < handles.Length; i++)
+				vehicles[i] = new Vehicle(handles[i]);
+			return vehicles;
 		}
 
 		/// <summary>
 		/// Gets all <see cref="Prop"/>'s (objects) currently spawned/loaded in the game world
 		/// </summary>
 		/// <returns><see cref="Array"/> of all <see cref="Prop"/>'s found</returns>
-		/// <remarks><u>Note: This function can return <see cref="Array.Empty{T}"/> if the internal call to worldGetAllObjects() fails</u></remarks>
-		[HandleProcessCorruptedStateExceptions]
+		/// <remarks>Returns <see cref="Array.Empty{T}"/> if ScriptHookRDR2 fails to read the pool.</remarks>
 		public static Prop[] GetAllObjects()
 		{
-			int[] props = new int[1024];
-			int count = 0;
+			int[] handles = GetPoolHandles(RDR2DN.NativeMemory.PoolKind.Objects);
+			var props = new Prop[handles.Length];
+			for (int i = 0; i < handles.Length; i++)
+				props[i] = new Prop(handles[i]);
+			return props;
+		}
 
+		// _GET_ENTITIES_NEAR_POINT entity types (as used by the game's scripts)
+		private const int ItemsetPeds = 1;
+		private const int ItemsetVehicles = 2;
+		private const int ItemsetObjects = 3;
+
+		/// <summary>
+		/// Handles of the entities of one type within <paramref name="radius"/> of <paramref name="position"/>, from the
+		/// game's own spatial query (_GET_ENTITIES_NEAR_POINT into an itemset). Only existing entities are returned.
+		/// </summary>
+		private static List<int> GetEntitiesNearPoint(Vector3 position, float radius, int entityType)
+		{
+			var result = new List<int>();
+			if (radius <= 0f)
+			{
+				return result;
+			}
+			int itemset = ITEMSET.CREATE_ITEMSET(true);
+			if (itemset == 0)
+			{
+				return result;
+			}
 			try
 			{
-				count = RDR2DN.NativeMemory.worldGetAllObjects(props, 1024);
+				int size = ENTITY._GET_ENTITIES_NEAR_POINT(position.X, position.Y, position.Z, radius, itemset, entityType);
+				if (size <= 0)
+				{
+					size = ITEMSET.GET_ITEMSET_SIZE(itemset);
+				}
+				float radiusSquared = radius * radius;
+				for (int i = 0; i < size; i++)
+				{
+					int handle = ITEMSET.GET_INDEXED_ITEM_IN_ITEMSET(i, itemset);
+					if (handle == 0 || !ENTITY.DOES_ENTITY_EXIST(handle))
+						continue;
+					bool rightType = entityType == ItemsetPeds ? ENTITY.IS_ENTITY_A_PED(handle)
+						: entityType == ItemsetVehicles ? ENTITY.IS_ENTITY_A_VEHICLE(handle)
+						: ENTITY.IS_ENTITY_AN_OBJECT(handle);
+					if (!rightType)
+						continue;
+					Vector3 p = ENTITY.GET_ENTITY_COORDS(handle, false, false);
+					if (p.DistanceToSquared(position) > radiusSquared)
+						continue;
+					result.Add(handle);
+				}
 			}
-			catch
+			finally
 			{
-				return Array.Empty<Prop>();
+				// Itemsets come from a small pool: never leak one, also when a native threw
+				if (ITEMSET.IS_ITEMSET_VALID(itemset))
+				{
+					ITEMSET.DESTROY_ITEMSET(itemset);
+				}
 			}
+			return result;
+		}
 
-			List<Prop> Prop = new List<Prop>();
-			for (int i = 0; i < count; i++)
-				Prop.Add(new Prop(props[i]));
+		/// <summary>Gets the <see cref="Ped"/>s within <paramref name="radius"/> of <paramref name="position"/>.</summary>
+		/// <remarks>Uses the game's spatial query (itemsets); prefer this over <see cref="GetAllPeds"/> every frame.</remarks>
+		public static Ped[] GetNearbyPeds(Vector3 position, float radius)
+		{
+			List<int> handles = GetEntitiesNearPoint(position, radius, ItemsetPeds);
+			var peds = new Ped[handles.Count];
+			for (int i = 0; i < peds.Length; i++)
+				peds[i] = new Ped(handles[i]);
+			return peds;
+		}
 
-			return Prop.ToArray();
+		/// <summary>Gets the <see cref="Ped"/>s within <paramref name="radius"/> of <paramref name="ped"/>, without <paramref name="ped"/>.</summary>
+		public static Ped[] GetNearbyPeds(Ped ped, float radius)
+		{
+			if (ped == null || !ped.Exists())
+			{
+				return Array.Empty<Ped>();
+			}
+			List<int> handles = GetEntitiesNearPoint(ped.Position, radius, ItemsetPeds);
+			handles.Remove(ped.Handle);
+			var peds = new Ped[handles.Count];
+			for (int i = 0; i < peds.Length; i++)
+				peds[i] = new Ped(handles[i]);
+			return peds;
+		}
+
+		/// <summary>Gets the <see cref="Vehicle"/>s within <paramref name="radius"/> of <paramref name="position"/>.</summary>
+		public static Vehicle[] GetNearbyVehicles(Vector3 position, float radius)
+		{
+			List<int> handles = GetEntitiesNearPoint(position, radius, ItemsetVehicles);
+			var vehicles = new Vehicle[handles.Count];
+			for (int i = 0; i < vehicles.Length; i++)
+				vehicles[i] = new Vehicle(handles[i]);
+			return vehicles;
+		}
+
+		/// <summary>Gets the <see cref="Prop"/>s (objects) within <paramref name="radius"/> of <paramref name="position"/>.</summary>
+		public static Prop[] GetNearbyProps(Vector3 position, float radius)
+		{
+			List<int> handles = GetEntitiesNearPoint(position, radius, ItemsetObjects);
+			var props = new Prop[handles.Count];
+			for (int i = 0; i < props.Length; i++)
+				props[i] = new Prop(handles[i]);
+			return props;
 		}
 
 #if CPP_SCRIPTHOOKRDR_V2

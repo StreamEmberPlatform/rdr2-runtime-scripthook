@@ -6,6 +6,41 @@
 #pragma managed(push, off)
 
 #include <Windows.h>
+#include <atomic>
+
+// StreamEmber: CLR thread model (ScriptHookVDotNet 3.7 approach, scripthookvdotnet#976). Managed code runs on a
+// dedicated thread instead of ScriptHookRDR2's script fiber: the CLR caches stack limits per thread, and running it
+// on a fiber leads to (false) stack overflows and random runtime crashes when exceptions are dispatched. Natives are
+// then invoked with the game main thread's TLS context while that thread waits in ScriptMain.
+// Runtime.ini: ThreadingModel=Thread (default) | Fiber (the old ScriptHookRDR2DotNet behaviour).
+static bool sUseClrThread = true;
+static LPVOID sTlsContextAddrOfGameMainThread = nullptr;
+static DWORD sGameMainThreadId = 0;
+static std::atomic_bool sGameMainThreadVarsInitialized(false);
+static std::atomic_bool sScriptDomainRequestedToReload(false);
+
+static void SetTlsContext(LPVOID context)
+{
+	__writegsqword(0x58, reinterpret_cast<DWORD64>(context));
+}
+static LPVOID GetTlsContext()
+{
+	return reinterpret_cast<LPVOID>(__readgsqword(0x58));
+}
+
+// Accessors for managed code (<atomic> must not be used from /clr code)
+static bool IsGameMainThreadKnown()
+{
+	return sUseClrThread && sGameMainThreadVarsInitialized.load(std::memory_order_acquire);
+}
+static LPVOID GetGameMainThreadTlsContext()
+{
+	return sTlsContextAddrOfGameMainThread;
+}
+static DWORD GetGameMainThreadId()
+{
+	return sGameMainThreadId;
+}
 
 #pragma managed(pop)
 
@@ -259,6 +294,18 @@ static void ScriptHookRDRDotNet_ManagedInit()
 		return;
 	}
 
+	// CLR thread model: natives run on script threads with the game main thread's TLS context
+	if (IsGameMainThreadKnown())
+	{
+		domain->InitTlsContextSwitch(
+			IntPtr(reinterpret_cast<void*>(&GetTlsContext)),
+			IntPtr(reinterpret_cast<void*>(&SetTlsContext)),
+			IntPtr(GetGameMainThreadTlsContext()),
+			static_cast<UInt32>(GetGameMainThreadId()));
+	}
+	RDR2DN::Log::Message(RDR2DN::Log::Level::Info, "Threading model: ",
+		domain->IsTlsContextSwitchEnabled ? "dedicated CLR thread" : "ScriptHookRDR2 fiber");
+
 	domain->ScriptTimeoutThreshold = ScriptHookRDRDotNet::scriptTimeoutThreshold;
 
 	// Console Stuff
@@ -426,10 +473,73 @@ static void ScriptHookRDRDotNet_DispatchKey(WinForms::Keys keys, bool keydown)
 #pragma unmanaged
 
 #include <Main.h>
+#include <string.h>
+#include <wchar.h>
 
 PVOID sGameFiber = nullptr;
 
-static void ScriptMain()
+// --- CLR thread model -------------------------------------------------------------------------------------------
+static std::atomic<HANDLE> hClrThread{ nullptr };
+static std::atomic<HANDLE> hClrWaitEvent{ nullptr };
+static std::atomic<HANDLE> hClrContinueEvent{ nullptr };
+static std::atomic_bool sClrThreadRequestedToExit(false);
+static PVOID sOldGameFiber = nullptr;
+
+static DWORD WINAPI ClrThreadProc(LPVOID)
+{
+	// Load the CLR on this thread before anything else (matches the CLR DLLs' TLS slots with the game thread's)
+	ForceCLRInit();
+
+	// DllMain runs before ScriptHookRDR2 starts script fibers: wait until ScriptMain signals the first tick
+	WaitForSingleObject(hClrContinueEvent.load(std::memory_order_relaxed), INFINITE);
+
+	while (!sClrThreadRequestedToExit.load(std::memory_order_relaxed))
+	{
+		sGameReloaded = false;
+		sScriptDomainRequestedToReload.store(false, std::memory_order_release);
+		ScriptHookRDRDotNet_SafeInit();
+
+		// One managed tick per game tick; the game main thread waits in ScriptMain meanwhile
+		while (!sGameReloaded
+			&& !sScriptDomainRequestedToReload.load(std::memory_order_acquire)
+			&& !sClrThreadRequestedToExit.load(std::memory_order_relaxed))
+		{
+			ScriptHookRDRDotNet_SafeTick();
+			SetEvent(hClrWaitEvent.load(std::memory_order_relaxed));
+			WaitForSingleObject(hClrContinueEvent.load(std::memory_order_relaxed), INFINITE);
+		}
+	}
+	return 0;
+}
+
+static void ScriptMainClrThread()
+{
+	// ScriptHookRDR2 already turned the current thread into a fiber
+	const PVOID initialGameFiber = GetCurrentFiber();
+	if (sOldGameFiber != nullptr)
+	{
+		// ScriptHookRDR2 restarted its scripts (new game session, checkpoint/mission retry): reload the domain
+		sScriptDomainRequestedToReload.store(true, std::memory_order_release);
+	}
+	sOldGameFiber = initialGameFiber;
+
+	while (!sClrThreadRequestedToExit.load(std::memory_order_acquire))
+	{
+		// A new fiber means ScriptHookRDR2 is disposing this one: leave without touching anything
+		if (GetCurrentFiber() != initialGameFiber)
+		{
+			break;
+		}
+
+		SetEvent(hClrContinueEvent.load(std::memory_order_relaxed));
+		// Blocks the game main thread while managed code runs, so natives can borrow its TLS context safely
+		WaitForSingleObject(hClrWaitEvent.load(std::memory_order_relaxed), INFINITE);
+		scriptWait(0);
+	}
+}
+
+// --- Fiber model (ScriptHookRDR2DotNet) -------------------------------------------------------------------------
+static void ScriptMainFiber()
 {
 	// ScriptHookRDR2 already turned the current thread into a fiber, so we can safely retrieve it.
 	sGameFiber = GetCurrentFiber();
@@ -457,6 +567,71 @@ static void ScriptMain()
 	}
 }
 
+static void ScriptMain()
+{
+	// The game main thread's TLS context and id: natives on other threads borrow this context
+	if (!sGameMainThreadVarsInitialized.load(std::memory_order_acquire))
+	{
+		sTlsContextAddrOfGameMainThread = GetTlsContext();
+		sGameMainThreadId = GetCurrentThreadId();
+		sGameMainThreadVarsInitialized.store(true, std::memory_order_release);
+	}
+
+	if (sUseClrThread)
+		ScriptMainClrThread();
+	else
+		ScriptMainFiber();
+}
+
+// Reads ThreadingModel from <game>\StreamEmber\Config\Runtime.ini (kernel32 only: called from DllMain).
+static bool ReadUseClrThread(HMODULE hModule)
+{
+	wchar_t path[MAX_PATH];
+	const DWORD len = GetModuleFileNameW(hModule, path, MAX_PATH);
+	if (len == 0 || len >= MAX_PATH)
+		return true;
+	wchar_t* slash = wcsrchr(path, L'\\');
+	if (slash == nullptr)
+		return true;
+	*slash = L'\0';
+	if (wcscat_s(path, MAX_PATH, L"\\StreamEmber\\Config\\Runtime.ini") != 0)
+		return true;
+
+	const HANDLE file = CreateFileW(path, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE)
+		return true;
+	char text[16384];
+	DWORD read = 0;
+	const BOOL ok = ReadFile(file, text, sizeof(text) - 1, &read, NULL);
+	CloseHandle(file);
+	if (!ok)
+		return true;
+	text[read] = '\0';
+
+	bool useThread = true;
+	for (char* line = text; line != nullptr && *line != '\0'; )
+	{
+		char* next = strchr(line, '\n');
+		if (next != nullptr)
+			*next++ = '\0';
+		while (*line == ' ' || *line == '\t' || *line == '\r')
+			++line;
+		if (_strnicmp(line, "ThreadingModel", 14) == 0)
+		{
+			char* value = strchr(line, '=');
+			if (value != nullptr)
+			{
+				++value;
+				while (*value == ' ' || *value == '\t' || *value == '"')
+					++value;
+				useThread = _strnicmp(value, "Fiber", 5) != 0;
+			}
+		}
+		line = next;
+	}
+	return useThread;
+}
+
 static void ScriptKeyboardMessage(DWORD key, WORD repeats, BYTE scanCode, BOOL isExtended, BOOL isWithAlt, BOOL wasDownBefore, BOOL isUpNow)
 {
 	ScriptHookRDRDotNet_ManagedKeyboardMessage(
@@ -478,12 +653,31 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		// This is technically a very bad idea (https://learn.microsoft.com/cpp/dotnet/initialization-of-mixed-assemblies), but fixes a crash that would otherwise occur when the CLR is initialized later on
 		if (!GetModuleHandle(TEXT("clr.dll")))
 			ForceCLRInit();
+		sUseClrThread = ReadUseClrThread(hModule);
+		if (sUseClrThread)
+		{
+			hClrContinueEvent.store(CreateEvent(NULL, FALSE, FALSE, NULL), std::memory_order_relaxed);
+			hClrWaitEvent.store(CreateEvent(NULL, FALSE, FALSE, NULL), std::memory_order_relaxed);
+			hClrThread.store(CreateThread(NULL, 0, ClrThreadProc, NULL, 0, NULL), std::memory_order_release);
+			if (hClrThread.load(std::memory_order_relaxed) == nullptr)
+				sUseClrThread = false;  // fall back to the fiber model
+		}
 		// Register ScriptHookRDRDotNet native script
 		scriptRegister(hModule, ScriptMain);
 		// Register handler for keyboard messages
 		keyboardHandlerRegister(ScriptKeyboardMessage);
 		break;
 	case DLL_PROCESS_DETACH:
+		if (hClrThread.load(std::memory_order_relaxed) != nullptr)
+		{
+			// Let the CLR thread and the script fiber leave their waits (the process is exiting)
+			sClrThreadRequestedToExit.store(true, std::memory_order_relaxed);
+			SetEvent(hClrContinueEvent.load(std::memory_order_relaxed));
+			SetEvent(hClrWaitEvent.load(std::memory_order_relaxed));
+			CloseHandle(hClrContinueEvent.load(std::memory_order_relaxed));
+			CloseHandle(hClrWaitEvent.load(std::memory_order_relaxed));
+			CloseHandle(hClrThread.load(std::memory_order_relaxed));
+		}
 		// Unregister ScriptHookRDRDotNet native script
 		scriptUnregister(hModule);
 		// Unregister handler for keyboard messages

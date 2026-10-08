@@ -98,6 +98,76 @@ namespace RDR2DN
 
 		#endregion
 
+		#region Entity pools (StreamEmber)
+
+		/// <summary>Entity pools of ScriptHookRDR2.</summary>
+		public enum PoolKind
+		{
+			Objects = 0,
+			Peds = 1,
+			Pickups = 2,
+			Vehicles = 3,
+		}
+
+		/// <summary>
+		/// ScriptHookRDR2's worldGetAll* functions turn every pool entry into a script handle, which allocates through
+		/// the game's per-thread state. Called from a script thread (as ScriptHookRDR2DotNet always did) that state is
+		/// not the game's, which corrupts it over time: random access violations (Halen84/ScriptHookRDR2DotNet-V2#2)
+		/// and, once broken, empty results for the rest of the session. This task runs them where natives run
+		/// (ScriptDomain.ExecuteTask: the game thread, or with its TLS context).
+		/// </summary>
+		private sealed class PoolTask : IScriptTask
+		{
+			internal PoolKind _kind;
+			internal int[] _buffer;
+			internal int _count;
+
+			[System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
+			public void Run()
+			{
+				try
+				{
+					switch (_kind)
+					{
+						case PoolKind.Objects: _count = worldGetAllObjects(_buffer, _buffer.Length); break;
+						case PoolKind.Peds: _count = worldGetAllPeds(_buffer, _buffer.Length); break;
+						case PoolKind.Pickups: _count = worldGetAllPickups(_buffer, _buffer.Length); break;
+						case PoolKind.Vehicles: _count = worldGetAllVehicles(_buffer, _buffer.Length); break;
+						default: _count = 0; break;
+					}
+				}
+				catch
+				{
+					_count = -1;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Fills <paramref name="buffer"/> with the script handles of every entity in a pool.
+		/// Returns the number of handles written, or -1 when ScriptHookRDR2 failed.
+		/// </summary>
+		public static int GetPoolHandles(PoolKind kind, int[] buffer)
+		{
+			if (buffer == null || buffer.Length == 0)
+			{
+				return 0;
+			}
+			var task = new PoolTask { _kind = kind, _buffer = buffer };
+			ScriptDomain domain = ScriptDomain.CurrentDomain;
+			if (domain != null)
+			{
+				domain.ExecuteTask(task);
+			}
+			else
+			{
+				task.Run();
+			}
+			return Math.Min(task._count, buffer.Length);
+		}
+
+		#endregion
+
 		/// <inheritdoc cref="FindPatternNaive(string, string, IntPtr, ulong)"/>
 		public static unsafe byte* FindPatternNaive(string pattern, string mask)
 		{

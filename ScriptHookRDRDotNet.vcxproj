@@ -75,6 +75,8 @@
     </ResourceCompile>
     <CsCompile>
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+      <!-- C# 9+: function pointers (ScriptDomain TLS context switch) -->
+      <LangVersion>latest</LangVersion>
       <Utf8Output>true</Utf8Output>
     </CsCompile>
     <Link>

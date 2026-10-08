@@ -30,6 +30,21 @@ namespace RDR2DN
 		[DllImport("Kernel32.dll")]
 		internal static extern bool IsDebuggerPresent();
 
+		[SuppressUnmanagedCodeSecurity]
+		[DllImport("Kernel32.dll")]
+		private static extern uint GetCurrentThreadId();
+
+		// StreamEmber: CLR thread model (the approach of ScriptHookVDotNet 3.7, scripthookvdotnet#976).
+		// Managed code runs on a dedicated thread, never on ScriptHookRDR2's script fiber. While it runs, the game's
+		// main thread is blocked in ScriptMain, so natives may be invoked directly from the executing script thread
+		// after borrowing the main thread's TLS context (rage keeps per-thread state, e.g. the active script thread
+		// and allocators, in TLS). This also removes the old per-native hand-off to the main fiber.
+		private unsafe delegate* unmanaged[Cdecl]<IntPtr> _getTlsContext;
+		private unsafe delegate* unmanaged[Cdecl]<IntPtr, void> _setTlsContext;
+		private IntPtr _tlsContextOfMainThread;
+		private uint _gameMainThreadIdUnmanaged;
+		private volatile bool _tlsContextSwitchEnabled;
+
 		private int _executingThreadId = Thread.CurrentThread.ManagedThreadId;
 		private Script _executingScript = null;
 		private List<IntPtr> _pinnedStrings = new();
@@ -569,11 +584,39 @@ namespace RDR2DN
 		}
 
 		/// <summary>
+		/// Enables the CLR thread model: natives run on the calling thread with the game main thread's TLS context.
+		/// Called once by the runtime (DllMain) right after the domain is created on the CLR thread.
+		/// </summary>
+		public unsafe void InitTlsContextSwitch(IntPtr getTlsContextFunc, IntPtr setTlsContextFunc, IntPtr mainThreadTlsContext, uint mainThreadId)
+		{
+			if (getTlsContextFunc == IntPtr.Zero || setTlsContextFunc == IntPtr.Zero || mainThreadTlsContext == IntPtr.Zero)
+			{
+				return;
+			}
+			_getTlsContext = (delegate* unmanaged[Cdecl]<IntPtr>)getTlsContextFunc;
+			_setTlsContext = (delegate* unmanaged[Cdecl]<IntPtr, void>)setTlsContextFunc;
+			_tlsContextOfMainThread = mainThreadTlsContext;
+			_gameMainThreadIdUnmanaged = mainThreadId;
+			_tlsContextSwitchEnabled = true;
+		}
+
+		/// <summary>
+		/// <c>true</c> when natives run directly on script threads (CLR thread model), <c>false</c> in the fiber model.
+		/// </summary>
+		public bool IsTlsContextSwitchEnabled => _tlsContextSwitchEnabled;
+
+		/// <summary>
 		/// Execute a script task in this script domain.
 		/// </summary>
 		/// <param name="task">The task to execute.</param>
 		public void ExecuteTask(IScriptTask task)
 		{
+			if (_tlsContextSwitchEnabled)
+			{
+				ExecuteTaskWithGameThreadTlsContext(task);
+				return;
+			}
+
 			if (Thread.CurrentThread.ManagedThreadId == _executingThreadId)
 			{
 				// Request came from the main thread, so can just execute it right away
@@ -593,6 +636,38 @@ namespace RDR2DN
 				_taskQueue.Enqueue(task);
 
 				SignalAndWait(_executingScript._waitEvent, _executingScript._continueEvent);
+			}
+		}
+
+		private unsafe void ExecuteTaskWithGameThreadTlsContext(IScriptTask task)
+		{
+			// Only the domain (CLR) thread and the script thread currently resumed by DoTick run while the game main
+			// thread is blocked; anything else (Task.Run, timers, user threads) would race the game.
+			if (Thread.CurrentThread.ManagedThreadId != _executingThreadId)
+			{
+				Script executing = _executingScript;
+				if (executing == null || !executing.IsCurrentThread)
+				{
+					throw new InvalidOperationException("Native functions can only be called from a script's Tick/KeyUp/KeyDown handlers (not from other threads).");
+				}
+			}
+
+			if (GetCurrentThreadId() == _gameMainThreadIdUnmanaged)
+			{
+				task.Run();
+				return;
+			}
+
+			IntPtr ownTlsContext = _getTlsContext();
+			_setTlsContext(_tlsContextOfMainThread);
+			try
+			{
+				task.Run();
+			}
+			finally
+			{
+				// Always give the thread its own TLS back, also when the native threw
+				_setTlsContext(ownTlsContext);
 			}
 		}
 
