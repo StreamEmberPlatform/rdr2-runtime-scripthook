@@ -485,6 +485,31 @@ static std::atomic<HANDLE> hClrWaitEvent{ nullptr };
 static std::atomic<HANDLE> hClrContinueEvent{ nullptr };
 static std::atomic_bool sClrThreadRequestedToExit(false);
 static PVOID sOldGameFiber = nullptr;
+static std::atomic_bool sClrThreadGaveUp(false);
+static HMODULE sModule = nullptr;
+// A managed tick (all scripts) may take this long before the game thread stops waiting for it
+static const DWORD kClrTickWatchdogMs = 30000;
+
+// Appends one line to StreamEmber\Logs\Runtime.log (kernel32 only, usable while managed code is stuck).
+static void WriteRuntimeLogLine(const char* message)
+{
+	wchar_t path[MAX_PATH];
+	const DWORD len = GetModuleFileNameW(sModule, path, MAX_PATH);
+	if (len == 0 || len >= MAX_PATH)
+		return;
+	wchar_t* slash = wcsrchr(path, L'\\');
+	if (slash == nullptr)
+		return;
+	*slash = L'\0';
+	if (wcscat_s(path, MAX_PATH, L"\\StreamEmber\\Logs\\Runtime.log") != 0)
+		return;
+	const HANDLE file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (file == INVALID_HANDLE_VALUE)
+		return;
+	DWORD written = 0;
+	WriteFile(file, message, static_cast<DWORD>(strlen(message)), &written, NULL);
+	CloseHandle(file);
+}
 
 static DWORD WINAPI ClrThreadProc(LPVOID)
 {
@@ -532,9 +557,19 @@ static void ScriptMainClrThread()
 			break;
 		}
 
-		SetEvent(hClrContinueEvent.load(std::memory_order_relaxed));
-		// Blocks the game main thread while managed code runs, so natives can borrow its TLS context safely
-		WaitForSingleObject(hClrWaitEvent.load(std::memory_order_relaxed), INFINITE);
+		if (!sClrThreadGaveUp.load(std::memory_order_relaxed))
+		{
+			SetEvent(hClrContinueEvent.load(std::memory_order_relaxed));
+			// Blocks the game main thread while managed code runs, so natives can borrow its TLS context safely.
+			// Watchdog: never freeze the game for good. If managed code does not come back, scripts stop for this
+			// session and the game keeps running.
+			if (WaitForSingleObject(hClrWaitEvent.load(std::memory_order_relaxed), kClrTickWatchdogMs) == WAIT_TIMEOUT)
+			{
+				sClrThreadGaveUp.store(true, std::memory_order_relaxed);
+				WriteRuntimeLogLine("[ERROR] Managed code did not return within 30 s (ThreadingModel=Thread). Scripts are stopped "
+					"for this session so the game keeps running. Use ThreadingModel=Fiber in StreamEmber\\Config\\Runtime.ini.\r\n");
+			}
+		}
 		scriptWait(0);
 	}
 }
@@ -654,6 +689,7 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		// This is technically a very bad idea (https://learn.microsoft.com/cpp/dotnet/initialization-of-mixed-assemblies), but fixes a crash that would otherwise occur when the CLR is initialized later on
 		if (!GetModuleHandle(TEXT("clr.dll")))
 			ForceCLRInit();
+		sModule = hModule;
 		sUseClrThread = ReadUseClrThread(hModule);
 		if (sUseClrThread)
 		{
