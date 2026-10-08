@@ -75,4 +75,6 @@ SDK sırası: `-SdkPath` → `vendor\ScriptHookRDR2_SDK_*` → `%USERPROFILE%\Do
 
 `RDR2.exe` klasörüne: Alexander Blade'in `ScriptHookRDR2.dll` + `dinput8.dll` (ASI loader), sonra
 `ScriptHookRDRDotNet.asi` + `ScriptHookRDRNetAPI.dll` **birlikte**, `ScriptHookRDRDotNet.ini` ve `scripts\` klasörü.
-Scriptler `scripts\` içine (.dll / .cs / .vb). Konsol: F8. Log: `ScriptHookRDRDotNet.log`.
+Scriptler `scripts\` içine (.dll / .cs / .vb). Konsol: **F4** (upstream varsayılanı F8'di; F7/F8 StreamEmber
+overlay'inin kısayolları). Log: `ScriptHookRDRDotNet.log`. Oyunda zaten bir `ScriptHookRDRDotNet.ini` varsa
+`build.ps1 -GameDir` onu ezmez; konsol tuşunu orada elle `ConsoleKey=F4` yapın.
