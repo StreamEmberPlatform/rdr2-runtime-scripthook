@@ -12,7 +12,7 @@ using System.Runtime.InteropServices;
 
 namespace RDR2
 {
-	public static class Game
+	public static partial class Game // StreamEmber: partial, see Game.StreamEmber.cs
 	{
 		[DllImport("user32.dll", CharSet = CharSet.Auto, ExactSpelling = true)]
 		private static extern IntPtr GetForegroundWindow();

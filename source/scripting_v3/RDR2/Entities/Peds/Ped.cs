@@ -12,7 +12,7 @@ using System.Text;
 
 namespace RDR2
 {
-	public sealed class Ped : Entity
+	public sealed partial class Ped : Entity // StreamEmber: partial, see Ped.StreamEmber.cs
 	{
 		#region Fields
 		private TaskInvoker _tasks;

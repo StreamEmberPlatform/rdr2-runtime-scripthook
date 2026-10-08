@@ -8,7 +8,7 @@ using RDR2.Native;
 
 namespace RDR2
 {
-	public sealed class Player : INativeValue
+	public sealed partial class Player : INativeValue // StreamEmber: partial, see Player.StreamEmber.cs
 	{
 		private Ped _pedPlayer;
 

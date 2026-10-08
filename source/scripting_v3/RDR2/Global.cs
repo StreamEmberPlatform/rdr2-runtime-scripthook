@@ -62,6 +62,15 @@ namespace RDR2
 				Vector3 vec = (Vector3)(object)value;
 				RDR2DN.NativeMemory.WriteVector3(address, new RDR2DN.NativeMemory.FVector3(vec.X, vec.Y, vec.Z));
 			}
+			// StreamEmber: 64-bit and unsigned values (hashes above int.MaxValue used to throw OverflowException)
+			else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
+			{
+				*MemoryAddress = typeof(T) == typeof(long) ? unchecked((ulong)(long)(object)value) : (ulong)(object)value;
+			}
+			else if (typeof(T) == typeof(uint))
+			{
+				RDR2DN.NativeMemory.WriteInt32(address, unchecked((int)(uint)(object)value));
+			}
 			else if (typeof(T).IsPrimitive || typeof(T).IsEnum)
 			{
 				RDR2DN.NativeMemory.WriteInt32(address, Convert.ToInt32(value));
@@ -111,6 +120,20 @@ namespace RDR2
 			{
 				var data = RDR2DN.NativeMemory.ReadVector3(address);
 				return (T)(object)new Vector3(data.X, data.Y, data.Z);
+			}
+
+			// StreamEmber: unsigned and 64-bit reads (the int fallback below threw InvalidCastException for them)
+			if (typeof(T) == typeof(uint))
+			{
+				return (T)(object)unchecked((uint)RDR2DN.NativeMemory.ReadInt32(address));
+			}
+			if (typeof(T) == typeof(long))
+			{
+				return (T)(object)unchecked((long)*MemoryAddress);
+			}
+			if (typeof(T) == typeof(ulong))
+			{
+				return (T)(object)*MemoryAddress;
 			}
 
 			if (typeof(T).IsPrimitive || typeof(T).IsEnum)

@@ -8,7 +8,7 @@ using RDR2.Native;
 
 namespace RDR2
 {
-	public abstract class Entity : PoolObject, ISpatial
+	public abstract partial class Entity : PoolObject, ISpatial // StreamEmber: partial, see Entity.StreamEmber.cs
 	{
 		internal Entity(int handle) : base(handle)
 		{

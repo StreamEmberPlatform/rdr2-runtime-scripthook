@@ -10,7 +10,7 @@ namespace RDR2.UI
 	/// <summary>
 	/// Methods to manipulate the HUD (heads-up-display) of the game.
 	/// </summary>
-	public static class Hud
+	public static partial class Hud // StreamEmber: partial, see Hud.StreamEmber.cs
 	{
 		/// <summary>
 		/// Enables a <see cref="eHudContext"/>

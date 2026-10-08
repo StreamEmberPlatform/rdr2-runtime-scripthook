@@ -3,6 +3,15 @@
 Sürümler `VERSION` (major.minor) + commit sayısı (patch) ile otomatik verilir; her `main` push'u bir sürümdür.
 Burada yalnız kayda değer değişiklikler tutulur.
 
+## 1.1
+- Yeni API (ChaosModRDR incelemesinden): `ScriptStruct` (struct alan native'ler), `Ped.GetNearbyPeds/GetNearbyVehicles(max)`
+  (itemset'siz), binek, outfit preset, sarhoşluk, yürüyüş stili, kaçma, savaş öznitelikleri, kıyafet kaydet/geri yükle,
+  yerçekimi/fizik/ateş, Dead Eye/Eagle Eye, suç bildirme, hava/rüzgâr/kar/yıldırım/saat/timecycle, `Model` ile spawn,
+  tekerlek koparma, tren hızı, birinci şahıs zorlama, kamera sarsıntısı, HUD gizleme, kontrol bağlamı, varlıktan ses,
+  oyunun bildirim akışı (`RDR2.UI.Feed.ShowToast`).
+- `Player.ChangeModelPersistent` / `RestoreStoryModel`: model değişince hikâye global'leri de güncellenir (yalnız doğrulanırsa).
+- `Global.Set/As` artık `uint`, `long`, `ulong` destekliyor.
+
 ## 1.0
 - Deneysel CLR thread modeli (ScriptHookVDotNet 3.7): `Runtime.ini` → `ThreadingModel=Thread`. Varsayılan `Fiber`:
   ilk oyun testinde Thread modeli scriptler başladıktan kısa süre sonra oyunu kapattı.

@@ -12,7 +12,7 @@ using System.Security;
 
 namespace RDR2
 {
-	public static class World
+	public static partial class World // StreamEmber: partial, see World.StreamEmber.cs
 	{
 		#region Fields
 		static readonly GregorianCalendar calendar = new GregorianCalendar();

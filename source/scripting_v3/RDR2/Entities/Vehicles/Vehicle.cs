@@ -9,7 +9,7 @@ using System;
 
 namespace RDR2
 {
-	public sealed class Vehicle : Entity
+	public sealed partial class Vehicle : Entity // StreamEmber: partial, see Vehicle.StreamEmber.cs
 	{
 		public Vehicle(int handle) : base(handle)
 		{

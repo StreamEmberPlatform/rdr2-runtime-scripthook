@@ -2,7 +2,7 @@
 
 namespace RDR2
 {
-	public static class Audio
+	public static partial class Audio // StreamEmber: partial, see Audio.StreamEmber.cs
 	{
 		public static bool PrepareSoundset(string soundset)
 		{

@@ -8,7 +8,7 @@ using RDR2.Native;
 
 namespace RDR2
 {
-	public static class GameplayCamera
+	public static partial class GameplayCamera // StreamEmber: partial, see GameplayCamera.StreamEmber.cs
 	{
 		/// <summary>
 		/// Gets the field of view of the <see cref="GameplayCamera"/>.
