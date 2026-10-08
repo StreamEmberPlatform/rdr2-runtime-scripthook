@@ -2,14 +2,21 @@
 # 1) Puts the ScriptHookRDR2 SDK (inc + lib) into sdk\ (from vendor\ or Downloads; never committed).
 # 2) Builds ScriptHookRDRDotNet.sln (x64).
 # 3) Collects the runtime into builds\<version>\ with the .dll renamed to .asi.
+# 4) -Deploy: installs it into the RDR2 folder (-GamePath, or the RDR2_GAME_PATH environment variable).
+#
+#   .\build.ps1
+#   .\build.ps1 -Deploy -GamePath "D:\SteamLibrary\steamapps\common\Red Dead Redemption 2"
+[CmdletBinding()]
 param(
     [string]$Version = '1.5.5.4',
     [ValidateSet('Release', 'Debug')]
     [string]$Configuration = 'Release',
     # Explicit SDK folder (contains inc\ and lib\). Default: vendor\ScriptHookRDR2_SDK_*, then ~\Downloads\ScriptHookRDR2_SDK_*
     [string]$SdkPath = '',
-    # Copy the build into this RDR2 folder (the one containing RDR2.exe)
-    [string]$GameDir = ''
+    # Install into the RDR2 folder (the one containing RDR2.exe)
+    [switch]$Deploy,
+    [Alias('GameDir')]
+    [string]$GamePath = ''
 )
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
@@ -64,13 +71,22 @@ Copy-Item (Join-Path $PSScriptRoot 'ScriptHookRDRDotNet.ini') $out -Force
 Write-Host "Done: $out"
 
 # --- Optional install ------------------------------------------------------------------------------------------
-if ($GameDir) {
+if ($GamePath -and -not $Deploy) { $Deploy = [switch]$true }  # old usage: -GameDir <path>
+if ($Deploy) {
+    $GameDir = if ($GamePath) { $GamePath } else { $env:RDR2_GAME_PATH }
+    if (-not $GameDir) { throw 'Game folder unknown: pass -GamePath or set the RDR2_GAME_PATH environment variable.' }
     if (-not (Test-Path (Join-Path $GameDir 'RDR2.exe'))) { throw "RDR2.exe not found in $GameDir" }
+    if (Get-Process -Name 'RDR2' -ErrorAction SilentlyContinue) { throw 'RDR2 is running; its files are locked. Close the game.' }
     foreach ($f in @('ScriptHookRDRDotNet.asi', 'ScriptHookRDRNetAPI.dll')) {
         Copy-Item (Join-Path $out $f) $GameDir -Force
     }
     $ini = Join-Path $GameDir 'ScriptHookRDRDotNet.ini'
     if (-not (Test-Path $ini)) { Copy-Item (Join-Path $out 'ScriptHookRDRDotNet.ini') $GameDir }
     New-Item -ItemType Directory -Force -Path (Join-Path $GameDir 'scripts') | Out-Null
+    foreach ($need in 'ScriptHookRDR2.dll', 'dinput8.dll') {
+        if (-not (Test-Path (Join-Path $GameDir $need))) {
+            Write-Warning "$need is missing in the game folder: install ScriptHookRDR2 (dev-c.com) for this game version."
+        }
+    }
     Write-Host "Installed into $GameDir"
 }

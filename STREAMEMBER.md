@@ -64,7 +64,7 @@ builds/                   build.ps1 çıktıları (git dışı)
 
 ```powershell
 .\build.ps1                                   # Release x64 → builds\1.5.5.4\
-.\build.ps1 -GameDir "D:\Games\Red Dead Redemption 2"   # derle + oyuna kur
+.\build.ps1 -Deploy -GamePath "D:\SteamLibrary\steamapps\common\Red Dead Redemption 2"   # derle + oyuna kur (ya da RDR2_GAME_PATH)
 .\build.ps1 -SdkPath C:\path\ScriptHookRDR2_SDK_1.0.1207.73
 ```
 
@@ -77,4 +77,4 @@ SDK sırası: `-SdkPath` → `vendor\ScriptHookRDR2_SDK_*` → `%USERPROFILE%\Do
 `ScriptHookRDRDotNet.asi` + `ScriptHookRDRNetAPI.dll` **birlikte**, `ScriptHookRDRDotNet.ini` ve `scripts\` klasörü.
 Scriptler `scripts\` içine (.dll / .cs / .vb). Konsol: **F4** (upstream varsayılanı F8'di; F7/F8 StreamEmber
 overlay'inin kısayolları). Log: `ScriptHookRDRDotNet.log`. Oyunda zaten bir `ScriptHookRDRDotNet.ini` varsa
-`build.ps1 -GameDir` onu ezmez; konsol tuşunu orada elle `ConsoleKey=F4` yapın.
+`build.ps1 -Deploy` onu ezmez; konsol tuşunu orada elle `ConsoleKey=F4` yapın.
