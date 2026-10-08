@@ -99,7 +99,7 @@ namespace RDR2DN
 			System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(NativeMemory).TypeHandle);
 
 			// Load API assemblies into this script domain
-			foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, "ScriptHookRDRNetAPI.dll", SearchOption.TopDirectoryOnly))
+			foreach (string apiPath in Directory.EnumerateFiles(apiBasePath, StreamEmberLayout.ScriptingFileName, SearchOption.TopDirectoryOnly))
 			{
 				Log.Message(Log.Level.Debug, "Loading API from ", apiPath, " ...");
 
@@ -350,7 +350,7 @@ namespace RDR2DN
 			{
 				// Filter out failure if unable to resolve RDR2DN API, since this was already logged in 'HandleResolve'
 				var fileNotFoundException = ex.LoaderExceptions[0] as FileNotFoundException;
-				if (fileNotFoundException == null || fileNotFoundException.Message.IndexOf("ScriptHookRDRNetAPI", StringComparison.OrdinalIgnoreCase) < 0)
+				if (fileNotFoundException == null || fileNotFoundException.Message.IndexOf(StreamEmberLayout.ScriptingAssemblyName, StringComparison.OrdinalIgnoreCase) < 0)
 				{
 					Log.Message(Log.Level.Error, "Failed to load assembly ", Path.GetFileName(filename), ": ", ex.LoaderExceptions[0].ToString());
 				}
@@ -478,9 +478,9 @@ namespace RDR2DN
 				{
 					var assemblyName = AssemblyName.GetAssemblyName(assemblyFiles[i]);
 
-					if (assemblyName.Name.StartsWith("ScriptHookRDRDotNet", StringComparison.OrdinalIgnoreCase))
+					if (StreamEmberLayout.IsRuntimeAssemblyName(assemblyName.Name) || StreamEmberLayout.IsScriptingAssemblyName(assemblyName.Name))
 					{
-						// Delete copies of ScriptHookRDRDotNet, since these can cause issues with the assembly binder loading multiple copies
+						// Delete copies of the runtime / API, since these can cause issues with the assembly binder loading multiple copies
 						File.Delete(assemblyFiles[i]);
 
 						assemblyFiles.RemoveAt(i--);
@@ -832,13 +832,13 @@ namespace RDR2DN
 
 			// Special case for the main assembly (this is necessary since the .NET framework does not check ASI files for assemblies during lookup, so is unable to load the ScriptDomain type when creating it in a new application domain)
 			// Some scripts were written against old RDR2DN versions where everything was still in the ASI, so make sure those are not caught here
-			if (assemblyName.Name.Equals("ScriptHookRDRDotNet", StringComparison.OrdinalIgnoreCase) && assemblyName.Version >= new Version(0, 0, 0, 0))
+			if (StreamEmberLayout.IsRuntimeAssemblyName(assemblyName.Name))
 			{
 				return typeof(ScriptDomain).Assembly;
 			}
 
-			// Handle resolve of the scripting API assembly (ScriptHookRDRDotNet*.dll)
-			if (CurrentDomain != null && assemblyName.Name.StartsWith("ScriptHookRDRNetAPI", StringComparison.OrdinalIgnoreCase))
+			// Handle resolve of the scripting API assembly (StreamEmber.Scripting.RDR2.dll)
+			if (CurrentDomain != null && StreamEmberLayout.IsScriptingAssemblyName(assemblyName.Name))
 			{
 				var bestVersion = new Version(1, 0, 0, 0); //
 

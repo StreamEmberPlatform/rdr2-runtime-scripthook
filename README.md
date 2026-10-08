@@ -1,40 +1,84 @@
-## Community Script Hook RDR2 .NET V2 | [![Downloads](https://raster.shields.io/github/downloads/Halen84/ScriptHookRDR2DotNet/total.svg?style=for-the-badge)](https://github.com/Halen84/ScriptHookRDR2DotNet/releases)
+# StreamEmber Runtime (RDR2)
 
-## ScriptHookRDR2DotNet V2
+Red Dead Redemption 2 için StreamEmber'in .NET script çalışma ortamı. Oyunun içinde .NET Framework 4.8'i başlatır,
+`StreamEmber\Scripts\` klasöründeki scriptleri yükler ve onlara `StreamEmber.Scripting.RDR2` API'sini verir.
+[ScriptHookRDR2DotNet-V2](https://github.com/Halen84/ScriptHookRDR2DotNet-V2) (zlib; SHVDN'den türetilmiş) üzerine
+kuruludur; kendi sürüm numarası, adları ve klasör düzeni olan bağımsız bir dağıtımdır.
 
-An improved version of [Saltyq's](https://github.com/Saltyq) [ScriptHookRDR2DotNet](https://github.com/Saltyq/ScriptHookRDR2DotNet) implementation.
+```text
+RDR2.exe
+ └─ ScriptHookRDR2.dll           Alexander Blade (dev-c.com) — native çağrılar, script fiber'ları (ayrıca kurulur)
+     └─ StreamEmber.Runtime.RDR2.asi            bu repo: .NET çalışma ortamı
+         └─ StreamEmber.Scripting.RDR2.dll      bu repo: scriptlerin API'si (namespace RDR2)
+             └─ StreamEmber\Scripts\*.dll       scriptler (ör. ui-runtime trainer'ı)
+```
 
-All credits go to [Saltyq](https://github.com/Saltyq) for the original [ScriptHookRDR2DotNet](https://github.com/Saltyq/ScriptHookRDR2DotNet) implementation.
+## Oyun klasöründeki düzen
 
-**Note: Older C# scripts may not be compatible with this version and likely needs to be updated.**
+| Dosya | Görev |
+|---|---|
+| `StreamEmber.Runtime.RDR2.asi` | Çalışma ortamı. ASI yükleyici (`dinput8.dll`) oyun kökünden yükler |
+| `StreamEmber\Runtime\StreamEmber.Scripting.RDR2.dll` | Script API'si |
+| `StreamEmber\Config\Runtime.ini` | Ayarlar (konsol tuşu F4, script zaman aşımı, scripts klasörü). Güncellemede korunur |
+| `StreamEmber\Scripts\` | Scriptler |
+| `StreamEmber\Logs\Runtime.log` | Log |
+| `StreamEmber\Manifests\StreamEmber.Runtime.RDR2.json` | Paket manifest'i: sürüm, commit, dosyalar ve SHA-256 değerleri |
+| `StreamEmber\Licenses\StreamEmber.Runtime.RDR2\` | Lisans |
 
-## About
+Gereken: `ScriptHookRDR2.dll` ve `dinput8.dll` ([dev-c.com](http://www.dev-c.com/rdr2/scripthookrdr2/)).
+ScriptHookRDR2DotNet ile birlikte kullanılmaz: kurulum `ScriptHookRDRDotNet.asi`'yi `.disabled` yapar.
 
-This is an *ASI plugin for Red Dead Redemption 2*, ported from [**ScriptHookVDotNet**](https://github.com/crosire/scripthookvdotnet/), based on the C++ ScriptHook by Alexander Blade, which allows running scripts written in any .NET language in-game.
+> Topluluğun ScriptHookRDR2DotNet scriptleri (`ScriptHookRDRNetAPI.dll`'e göre derlenmiş) bu çalışma ortamında
+> yüklenmez; scriptler `StreamEmber.Scripting.RDR2.dll`'e göre derlenir (`using RDR2;`).
 
-The issues page should be primarily used for bug reports and focused enhancement ideas. Questions related to RDR2 scripting in general are better off in [Discussions page](https://github.com/Halen84/ScriptHookRDR2DotNet-V2/discussions) or forums dedicated to this purpose, like [rdr2mods.com](https://www.rdr2mods.com/)
+## Sürümler ve yayın
 
-## Requirements
+- Sürüm: `VERSION` dosyası `major.minor`, patch = o dosyanın son değiştiği commit'ten bu yana commit sayısı.
+  `main`'e her push yeni bir sürümdür: `v1.0.0`, `v1.0.1`, … Minör/majör artırmak için `VERSION`'ı değiştirip pushla.
+- GitHub Actions (`.github/workflows/build.yml`): her push ve PR'da derleme; `main`'de ayrıca etiket ve GitHub Release
+  (`StreamEmber.Runtime.RDR2-<sürüm>.zip` + `.sha256`). Zip'in kökü = oyun klasörü.
+- ScriptHookRDR2 SDK'sı depoda yok (yeniden dağıtımı yasak). `build.ps1` onu `vendor\`, `İndirilenler` ya da
+  dev-c.com'dan alır ve kullandığı dosyaları sabit SHA-256 değerleriyle doğrular. CI'da dev-c.com erişilemezse
+  depo değişkeni `SCRIPTHOOKRDR2_SDK_URL` ile başka bir adres verilebilir.
+- Yerel derlemeler `-dev` ekiyle damgalanır (`1.0.5-dev`).
+- DLL'lerde: dosya ve ürün sürümü = StreamEmber sürümü; API derlemesinin `AssemblyVersion`'ı API seviyesidir (`2.2.0.0`).
 
-* [C++ ScriptHookRDR2 by Alexander Blade](http://www.dev-c.com/rdr2/scripthookrdr2/)
-* [.NET Framework ≥ 4.8](https://dotnet.microsoft.com/download/dotnet-framework/net48)
-* [Visual C++ Redistributable for Visual Studio 2019 x64](https://support.microsoft.com/en-us/help/2977003/the-latest-supported-visual-c-downloads)
+## Derleme
 
-## Downloads
+Visual Studio 2022+ ("Desktop development with C++" + C++/CLI desteği), .NET Framework 4.8 targeting pack.
 
-Pre-built binaries can be found on the [releases](https://github.com/Halen84/ScriptHookRDR2DotNet-V2/releases) page.
-You need to use the ASI file and the DLL files for APIs in an archive of the same version as internal structure can be changed without notices.
+```powershell
+.\build.ps1                                                            # derle + dist\RDR2\ + artifacts\*.zip
+.\build.ps1 -Deploy -GamePath "D:\SteamLibrary\steamapps\common\Red Dead Redemption 2"   # + oyuna kur (ya da RDR2_GAME_PATH)
+```
 
-## Contributing
+## Upstream ile ilişki
 
-You'll need Visual Studio 2019 or higher to open the project file and the [Script Hook RDR2 SDK](http://dev-c.com/rdr2/scripthookrdr2/) extracted into "[/sdk](/sdk)".
+| | |
+|---|---|
+| Upstream | https://github.com/Halen84/ScriptHookRDR2DotNet-V2 (`master`, 2023'ten beri durgun) |
+| Taban | `03f2264` |
+| Remote | `upstream` → Halen84 reposu, `origin` → StreamEmberPlatform/rdr2-runtime-scripthook |
 
-Any contributions to the project are welcomed, it's recommended to use GitHub's [pull request](https://help.github.com/articles/using-pull-requests/) system.
+İsim ve yollar yalnız `source/core/StreamEmberLayout.cs` içindedir; bizim değişiklikler `StreamEmber:` yorumlarıyla işaretli.
 
-## License
+### Upstream'den farklarımız
 
-All the source code except for the Vector, Matrix and Quaternion classes, which are licensed separately, is licensed under the conditions of the [zlib license](LICENSE.txt).
+| Değişiklik | Neden |
+|---|---|
+| Adlar ve klasör düzeni (`StreamEmberLayout.cs`), `.pdb`/`.xml` yok, sürüm kaynağı (`.rc`) | StreamEmber dağıtımı |
+| Derleme düzeltmesi (`Global.cs` FVector3, `Vehicle.cs` `Exists`) | Upstream HEAD derlenmiyordu |
+| Klavye mesajları pencere thread'inde kuyruğa alınır, script fiber'ında işlenir | Konsol ve domain pencere thread'inden çağrılıyordu |
+| Init / Tick / klavye sınırında try/catch, kısıtlı log | Sızan managed exception oyunu kapatıyordu |
+| Domain kaldırılmadan önce konsol bırakılır | Bayat konsol proxy'si her karede hata atıyordu |
+| `ExecuteTask` yalnız çalışan script'in thread'inden | Başka thread'den native çağrısı semafor sırasını bozuyordu |
+| `ScriptTimeoutThreshold` 100–60000 ms | `(int)uint` dönüşümü sonsuz bekleme olabiliyordu |
+| `StringToCoTaskMemUTF8` → `AllocCoTaskMem` | Heap uyuşmazlığı |
+| Script thread'leri arka plan thread'i, `Console.DoTick` hata yakalar, `Global` boş işaretçi kontrolü | Kapanış ve çökme güvenliği |
 
-## Credits
-* Saltyq - Original ScriptHookRDR2DotNet creator
-* crosire & kagikn - [ScriptHookVDotNet](https://github.com/scripthookvdotnet/scripthookvdotnet)
+Bilinen, yapılmamış iş: managed kod ScriptHook fiber'ında çalışıyor (SHVDN #976 benzeri). Kalıcı çözüm SHVDN 3.7'deki
+gibi ayrı CLR thread'i + TLS takası.
+
+## Lisans
+
+zlib ([LICENSE](LICENSE)). Upstream belgeleri: [docs/upstream](docs/upstream/README.md).

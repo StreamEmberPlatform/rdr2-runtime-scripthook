@@ -13,20 +13,22 @@
 bool sGameReloaded = false;
 
 // Import C# code base
-#using "ScriptHookRDRDotNet.netmodule"
+#using "StreamEmber.Runtime.RDR2.netmodule" // = $(TargetName).netmodule (StreamEmberLayout.RuntimeAssemblyName)
 
 using namespace System;
 using namespace System::Collections::Generic;
 using namespace System::Reflection;
 namespace WinForms = System::Windows::Forms;
 
-[assembly:AssemblyTitle("Script Hook RDR2 .NET")] ;
-[assembly:AssemblyDescription("An ASI plugin for Red Dead Redemption 2, which allows running scripts written in any .NET language in-game.")] ;
-[assembly:AssemblyCompany("Salty, SHVDN: crosire & contributors")] ;
-[assembly:AssemblyProduct("ScriptHookRDRDotNet")] ;
-[assembly:AssemblyCopyright("Copyright © 2015 crosire | Copyright © 2019 Salty")] ;
-[assembly:AssemblyVersion("1.5.5.4")] ;
-[assembly:AssemblyFileVersion("1.5.5.4")] ;
+[assembly:AssemblyTitle("StreamEmber Runtime (RDR2)")] ;
+[assembly:AssemblyDescription("StreamEmber .NET script runtime for Red Dead Redemption 2. Based on ScriptHookRDR2DotNet-V2.")] ;
+[assembly:AssemblyCompany("Stream Ember Platform")] ;
+[assembly:AssemblyProduct("StreamEmber Runtime")] ;
+[assembly:AssemblyCopyright("Copyright (c) 2015 crosire, (c) 2019 Salty, (c) Stream Ember Platform")] ;
+// StreamEmber: versions come from Directory.Build.props (SE_VERSION) through the vcxproj
+[assembly:AssemblyVersion(SE_FILE_VERSION)] ;
+[assembly:AssemblyFileVersion(SE_FILE_VERSION)] ;
+[assembly:AssemblyInformationalVersion(SE_VERSION)] ;
 // Sign with a strong name to distinguish from older versions and cause .NET framework runtime to bind the correct assemblies
 // There is no version check performed for assemblies without strong names (https://docs.microsoft.com/en-us/dotnet/framework/deployment/how-the-runtime-locates-assemblies)
 [assembly:AssemblyKeyFileAttribute("PublicKeyToken.snk")] ;
@@ -201,21 +203,24 @@ static void ScriptHookRDRDotNet_ManagedInit()
 	}
 
 
+	// StreamEmber: everything lives under <game>\StreamEmber (see StreamEmberLayout.cs)
+	RDR2DN::StreamEmberLayout::EnsureWritableDirectories();
+
 	// Clear log from previous runs
 	RDR2DN::Log::Clear();
 
 	// Load configuration
-	String^ scriptPath = "scripts";
+	String^ scriptPath = RDR2DN::StreamEmberLayout::ScriptsDirectory;
 
 	try
 	{
-		array<String^>^ config = IO::File::ReadAllLines(IO::Path::ChangeExtension(Assembly::GetExecutingAssembly()->Location, ".ini"));
+		array<String^>^ config = IO::File::ReadAllLines(RDR2DN::StreamEmberLayout::ConfigFile);
 
 		for each (String ^ line in config)
 		{
 			// Perform some very basic key/value parsing
 			line = line->Trim();
-			if (line->StartsWith("//"))
+			if (line->StartsWith("//") || line->StartsWith(";") || line->StartsWith("#"))
 				continue;
 			array<String^>^ data = line->Split('=');
 			if (data->Length != 2)
@@ -237,6 +242,8 @@ static void ScriptHookRDRDotNet_ManagedInit()
 					ScriptHookRDRDotNet::scriptTimeoutThreshold = outVal;
 				}
 			}
+			else if (String::Equals(keyStr, "ScriptsLocation", StringComparison::OrdinalIgnoreCase))
+				scriptPath = RDR2DN::StreamEmberLayout::ResolveGamePath(valueStr->Trim('"'));
 		}
 	}
 	catch (Exception^ ex)
@@ -245,8 +252,7 @@ static void ScriptHookRDRDotNet_ManagedInit()
 	}
 
 	// Create a separate script domain
-	String^ directory = IO::Path::GetDirectoryName(Assembly::GetExecutingAssembly()->Location);
-	domain = RDR2DN::ScriptDomain::Load(directory, scriptPath);
+	domain = RDR2DN::ScriptDomain::Load(RDR2DN::StreamEmberLayout::RuntimeDirectory, scriptPath);
 	if (domain == nullptr)
 	{
 		RDR2DN::Log::Message(RDR2DN::Log::Level::Error, "ScriptDomain::Load() returned null in ", scriptPath);
@@ -266,7 +272,7 @@ static void ScriptHookRDRDotNet_ManagedInit()
 		console->CommandHistory = stashedConsoleCommandHistory;
 
 		// Print welcome message
-		console->PrintInfo("~c~--- Community Script Hook RDR2 .NET V2 ---");
+		console->PrintInfo(String::Concat("~c~--- StreamEmber Runtime (RDR2) ", RDR2DN::StreamEmberLayout::ProductVersion, " ---"));
 		console->PrintInfo("~c~--- Type \"Help()\" to print an overview of available commands ---");
 
 		// Update console pointer in script domain

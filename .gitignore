@@ -37,3 +37,5 @@ Upgrade*.htm
 # StreamEmber
 /vendor/
 /builds/
+/dist/
+/artifacts/

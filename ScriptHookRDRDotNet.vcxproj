@@ -52,8 +52,9 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <!-- Global compilation settings -->
   <PropertyGroup>
-    <TargetExt>.dll</TargetExt>
-    <TargetName>ScriptHookRDRDotNet</TargetName>
+    <!-- StreamEmber: must match StreamEmberLayout.RuntimeAssemblyName (and the #using in DllMain.cpp) -->
+    <TargetExt>.asi</TargetExt>
+    <TargetName>StreamEmber.Runtime.RDR2</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -66,9 +67,12 @@
     <ClCompile>
       <AdditionalUsingDirectories>$(IntDir);%(AdditionalUsingDirectories)</AdditionalUsingDirectories>
       <AdditionalIncludeDirectories>sdk\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions Condition="'$(RDR2DN_VERSION)'==''">RDR2DN_VERSION="2.0.0.0";%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(RDR2DN_VERSION)'!=''">RDR2DN_VERSION="$(RDR2DN_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <!-- StreamEmber: versions come from Directory.Build.props (SE_VERSION) -->
+      <PreprocessorDefinitions>SE_FILE_VERSION="$(SE_FILE_VERSION)";SE_VERSION="$(SE_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>SE_VER_MAJOR=$(SE_VER_MAJOR);SE_VER_MINOR=$(SE_VER_MINOR);SE_VER_PATCH=$(SE_VER_PATCH);SE_VERSION_STR="$(SE_VERSION)";SE_FILE_VERSION_STR="$(SE_FILE_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
     <CsCompile>
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
       <Utf8Output>true</Utf8Output>
@@ -122,12 +126,16 @@
     <ClCompile Include="source\core\DllMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="source\core\StreamEmber.Runtime.rc" />
+  </ItemGroup>
+  <ItemGroup>
     <CsCompile Include="source\core\Console.cs" />
     <CsCompile Include="source\core\Log.cs" />
     <CsCompile Include="source\core\NativeFunc.cs" />
     <CsCompile Include="source\core\NativeMemory.cs" />
     <CsCompile Include="source\core\Script.cs" />
     <CsCompile Include="source\core\ScriptDomain.cs" />
+    <CsCompile Include="source\core\StreamEmberLayout.cs" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <!-- Compile C# source files -->

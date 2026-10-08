@@ -6,8 +6,9 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <RootNamespace>RDR2</RootNamespace>
-    <Title>ScriptHookRDRNetAPI</Title>
-    <AssemblyName>ScriptHookRDRNetAPI</AssemblyName>
+    <!-- StreamEmber: must match StreamEmberLayout.ScriptingAssemblyName -->
+    <Title>StreamEmber.Scripting.RDR2</Title>
+    <AssemblyName>StreamEmber.Scripting.RDR2</AssemblyName>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>9.0</LangVersion>
     <Platforms>x64</Platforms>
@@ -16,26 +17,30 @@
     <ErrorReport>prompt</ErrorReport>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <DocumentationFile>..\..\bin\Release\ScriptHookRDRNetAPI.xml</DocumentationFile>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <PropertyGroup>
-    <Version>2.2.0.0</Version>
-    <FileVersion>2.2.0.0</FileVersion>
+    <!-- StreamEmber: AssemblyVersion is the API level (the runtime resolves scripts by its major version),
+         the product version (SE_VERSION, Directory.Build.props) goes to FileVersion / InformationalVersion. -->
     <AssemblyVersion>2.2.0.0</AssemblyVersion>
-    <Authors>Halen84 &amp; Salty &amp; crosire &amp; kagikn &amp; contributors</Authors>
-    <Company></Company>
+    <FileVersion>$(SE_FILE_VERSION)</FileVersion>
+    <Version>$(SE_VERSION)</Version>
+    <InformationalVersion>$(SE_VERSION)</InformationalVersion>
+    <Authors>Halen84 &amp; Salty &amp; crosire &amp; kagikn &amp; contributors; Stream Ember Platform</Authors>
+    <AssemblyTitle>StreamEmber Scripting API (RDR2)</AssemblyTitle>
+    <Product>StreamEmber Runtime</Product>
+    <Company>Stream Ember Platform</Company>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <RepositoryUrl>https://github.com/Halen84/ScriptHookRDR2DotNet-V2</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>$(RepositoryUrl)</PackageProjectUrl>
     <PackageReleaseNotes>https://github.com/Halen84/ScriptHookRDR2DotNet-V2/releases</PackageReleaseNotes>
-    <Description>The developer SDK for ScriptHookRDRDotNet scripts for Red Dead Redemption 2.</Description>
+    <Description>StreamEmber scripting API for Red Dead Redemption 2 (based on ScriptHookRDR2DotNet-V2).</Description>
     <Copyright>Copyright © 2020 Salty &amp; Halen84 | Copyright © 2015 crosire &amp; kagikn</Copyright>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <OutputPath>..\..\bin\Debug\</OutputPath>

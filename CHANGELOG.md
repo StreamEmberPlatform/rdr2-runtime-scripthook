@@ -1,0 +1,11 @@
+# Değişiklik günlüğü
+
+Sürümler `VERSION` (major.minor) + commit sayısı (patch) ile otomatik verilir; her `main` push'u bir sürümdür.
+Burada yalnız kayda değer değişiklikler tutulur.
+
+## 1.0
+- İlk StreamEmber dağıtımı: `StreamEmber.Runtime.RDR2.asi` + `StreamEmber.Scripting.RDR2.dll`, `StreamEmber\` klasör
+  düzeni (Runtime, Scripts, Config, Logs, Manifests, Licenses), kendi sürüm numaraları.
+- `.pdb` ve `.xml` dosyaları dağıtımdan çıkarıldı; ScriptHookRDR2 SDK derleme sırasında alınır ve doğrulanır.
+- Çökme sertleştirmeleri (bkz. README, "Upstream'den farklarımız").
+- GitHub Actions: derleme, `main`'e her push'ta otomatik release.

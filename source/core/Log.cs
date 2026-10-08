@@ -18,7 +18,7 @@ namespace RDR2DN
 			Debug,
 		}
 
-		static string FilePath => Path.ChangeExtension(typeof(ScriptDomain).Assembly.Location, ".log");
+		static string FilePath => StreamEmberLayout.LogFile;
 
 		public static void Clear()
 		{

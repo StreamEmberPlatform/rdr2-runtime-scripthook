@@ -1,0 +1,16 @@
+<Project>
+  <!--
+    StreamEmber product version for every project in this repository (C++ runtime and C# API).
+    SE_VERSION is SemVer (1.2.3 or 1.2.3-dev.4). build.ps1 / CI pass it (-p:SE_VERSION=...), computed from the
+    VERSION file and git history (see tools/StreamEmber.Build.psm1); IDE builds get 0.0.0-dev.
+  -->
+  <PropertyGroup>
+    <SE_VERSION Condition="'$(SE_VERSION)' == ''">0.0.0-dev</SE_VERSION>
+    <SE_VERSION_CORE>$([System.Text.RegularExpressions.Regex]::Match('$(SE_VERSION)', '^\d+\.\d+\.\d+').Value)</SE_VERSION_CORE>
+    <SE_VERSION_CORE Condition="'$(SE_VERSION_CORE)' == ''">0.0.0</SE_VERSION_CORE>
+    <SE_VER_MAJOR>$([System.Version]::Parse('$(SE_VERSION_CORE)').Major)</SE_VER_MAJOR>
+    <SE_VER_MINOR>$([System.Version]::Parse('$(SE_VERSION_CORE)').Minor)</SE_VER_MINOR>
+    <SE_VER_PATCH>$([System.Version]::Parse('$(SE_VERSION_CORE)').Build)</SE_VER_PATCH>
+    <SE_FILE_VERSION>$(SE_VERSION_CORE).0</SE_FILE_VERSION>
+  </PropertyGroup>
+</Project>
