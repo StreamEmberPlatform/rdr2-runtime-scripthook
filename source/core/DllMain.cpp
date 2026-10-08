@@ -128,6 +128,29 @@ internal:
 	{
 		console = (RDR2DN::Console^)AppDomain::CurrentDomain->GetData("Console");
 	}
+
+	// Keyboard messages arrive on the game's window thread. Nothing that touches the console, the script domain or
+	// natives may run there, so they are queued and replayed on the script fiber in ManagedTick.
+	// Packed as: low 32 bits = Keys (with modifiers), bit 32 = key down.
+	static System::Collections::Concurrent::ConcurrentQueue<UInt64>^ keyQueue =
+		gcnew System::Collections::Concurrent::ConcurrentQueue<UInt64>();
+
+	// Errors at the unmanaged boundary are logged, never rethrown into the game (throttled to keep the log small).
+	static int boundaryErrorCount = 0;
+	static void LogBoundaryError(String^ where, Exception^ ex)
+	{
+		int n = ++boundaryErrorCount;
+		if (n <= 20 || (n % 1000) == 0)
+		{
+			try
+			{
+				RDR2DN::Log::Message(RDR2DN::Log::Level::Error, where, " failed (#", n.ToString(), "): ", ex->ToString());
+			}
+			catch (...)
+			{
+			}
+		}
+	}
 };
 
 static void ForceCLRInit()
@@ -147,10 +170,34 @@ static void ScriptHookRDRDotNet_ManagedInit()
 		// Stash the command history if console is loaded 
 		if (console != nullptr)
 		{
-			stashedConsoleCommandHistory = console->CommandHistory;
+			try
+			{
+				stashedConsoleCommandHistory = console->CommandHistory;
+			}
+			catch (Exception^)
+			{
+			}
 		}
 
-		RDR2DN::ScriptDomain::Unload(domain);
+		// The console lives inside the old domain; a stale proxy would throw AppDomainUnloadedException every tick
+		console = nullptr;
+
+		RDR2DN::ScriptDomain^ oldDomain = domain;
+		domain = nullptr;
+		try
+		{
+			RDR2DN::ScriptDomain::Unload(oldDomain);
+		}
+		catch (Exception^ ex)
+		{
+			ScriptHookRDRDotNet::LogBoundaryError("ScriptDomain::Unload", ex);
+		}
+	}
+
+	// Key events queued for the old domain are meaningless now
+	UInt64 dropped;
+	while (ScriptHookRDRDotNet::keyQueue->TryDequeue(dropped))
+	{
 	}
 
 
@@ -238,29 +285,106 @@ static void ScriptHookRDRDotNet_ManagedInit()
 	domain->Start();
 }
 
+static void ScriptHookRDRDotNet_DispatchKey(WinForms::Keys keys, bool keydown);
+
+static void ScriptHookRDRDotNet_SafeInit()
+{
+	try
+	{
+		ScriptHookRDRDotNet_ManagedInit();
+	}
+	catch (Exception^ ex)
+	{
+		ScriptHookRDRDotNet::LogBoundaryError("ManagedInit", ex);
+	}
+}
+
 static void ScriptHookRDRDotNet_ManagedTick()
 {
+	// Replay keyboard messages from the window thread on this (script) fiber
+	UInt64 packed;
+	int budget = 256;
+	while (budget-- > 0 && ScriptHookRDRDotNet::keyQueue->TryDequeue(packed))
+	{
+		try
+		{
+			ScriptHookRDRDotNet_DispatchKey(safe_cast<WinForms::Keys>(static_cast<int>(packed & 0xFFFFFFFFull)), (packed >> 32) != 0);
+		}
+		catch (Exception^ ex)
+		{
+			ScriptHookRDRDotNet::LogBoundaryError("KeyEvent", ex);
+		}
+	}
+
 	RDR2DN::Console^ console = ScriptHookRDRDotNet::console;
 	if (console != nullptr)
-		console->DoTick();
+	{
+		try
+		{
+			console->DoTick();
+		}
+		catch (AppDomainUnloadedException^)
+		{
+			ScriptHookRDRDotNet::console = nullptr;
+		}
+		catch (Exception^ ex)
+		{
+			ScriptHookRDRDotNet::LogBoundaryError("Console::DoTick", ex);
+		}
+	}
 
 	RDR2DN::ScriptDomain^ scriptdomain = ScriptHookRDRDotNet::domain;
 	if (scriptdomain != nullptr)
-		scriptdomain->DoTick();
+	{
+		try
+		{
+			scriptdomain->DoTick();
+		}
+		catch (Exception^ ex)
+		{
+			ScriptHookRDRDotNet::LogBoundaryError("ScriptDomain::DoTick", ex);
+		}
+	}
+}
+
+static void ScriptHookRDRDotNet_SafeTick()
+{
+	try
+	{
+		ScriptHookRDRDotNet_ManagedTick();
+	}
+	catch (Exception^ ex)
+	{
+		ScriptHookRDRDotNet::LogBoundaryError("ManagedTick", ex);
+	}
 }
 
 static void ScriptHookRDRDotNet_ManagedKeyboardMessage(unsigned long keycode, bool keydown, bool ctrl, bool shift, bool alt)
 {
-	// Filter out invalid key codes
-	if (keycode <= 0 || keycode >= 256)
-		return;
+	// Runs on the window thread: only validate and enqueue
+	try
+	{
+		// Filter out invalid key codes
+		if (keycode <= 0 || keycode >= 256)
+			return;
 
-	// Convert message into a key event
-	auto keys = safe_cast<WinForms::Keys>(keycode);
-	if (ctrl)  keys = keys | WinForms::Keys::Control;
-	if (shift) keys = keys | WinForms::Keys::Shift;
-	if (alt)   keys = keys | WinForms::Keys::Alt;
+		UInt32 keys = static_cast<UInt32>(keycode);
+		if (ctrl)  keys |= static_cast<UInt32>(WinForms::Keys::Control);
+		if (shift) keys |= static_cast<UInt32>(WinForms::Keys::Shift);
+		if (alt)   keys |= static_cast<UInt32>(WinForms::Keys::Alt);
 
+		// Bound the queue in case the script fiber is not ticking (loading screens, pause)
+		if (ScriptHookRDRDotNet::keyQueue->Count < 1024)
+			ScriptHookRDRDotNet::keyQueue->Enqueue(static_cast<UInt64>(keys) | (keydown ? (1ull << 32) : 0ull));
+	}
+	catch (Exception^)
+	{
+		// Never throw into the game's window procedure
+	}
+}
+
+static void ScriptHookRDRDotNet_DispatchKey(WinForms::Keys keys, bool keydown)
+{
 	RDR2DN::Console^ console = ScriptHookRDRDotNet::console;
 	if (console != nullptr)
 	{
@@ -308,7 +432,7 @@ static void ScriptMain()
 	{
 		sGameReloaded = false;
 
-		ScriptHookRDRDotNet_ManagedInit();
+		ScriptHookRDRDotNet_SafeInit();
 
 		while (!sGameReloaded)
 		{
@@ -321,7 +445,7 @@ static void ScriptMain()
 				break;
 			}
 
-			ScriptHookRDRDotNet_ManagedTick();
+			ScriptHookRDRDotNet_SafeTick();
 			scriptWait(0);
 		}
 	}

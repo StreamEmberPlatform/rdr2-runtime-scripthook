@@ -521,7 +521,7 @@ namespace RDR2DN
 			int len = Encoding.UTF8.GetByteCount(managedString);
 			byte[] buffer = new byte[len + 1];
 			Encoding.UTF8.GetBytes(managedString, 0, managedString.Length, buffer, 0);
-			IntPtr nativeUtf8 = Marshal.AllocHGlobal(buffer.Length);
+			IntPtr nativeUtf8 = Marshal.AllocCoTaskMem(buffer.Length); // freed with FreeCoTaskMem in ScriptDomain.CleanupStrings
 			Marshal.Copy(buffer, 0, nativeUtf8, buffer.Length);
 			return nativeUtf8;
 		}

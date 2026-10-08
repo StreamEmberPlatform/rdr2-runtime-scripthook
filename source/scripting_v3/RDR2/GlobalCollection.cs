@@ -18,7 +18,16 @@ namespace RDR2
 			{
 				unsafe
 				{
-					*(ulong*)RDR2DN.NativeMemory.GetGlobalPtr(globalId).ToPointer() = *value.MemoryAddress;
+					System.IntPtr target = RDR2DN.NativeMemory.GetGlobalPtr(globalId);
+					if (target == System.IntPtr.Zero)
+					{
+						throw new System.ArgumentOutOfRangeException(nameof(globalId), "Script global " + globalId + " is not available.");
+					}
+					if (value.MemoryAddress == null)
+					{
+						throw new System.ArgumentException("Source global is not initialized.", nameof(value));
+					}
+					*(ulong*)target.ToPointer() = *value.MemoryAddress;
 				}
 			}
 		}

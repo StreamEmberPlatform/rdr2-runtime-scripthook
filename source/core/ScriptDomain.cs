@@ -72,7 +72,15 @@ namespace RDR2DN
 		/// <summary>
 		/// Gets or sets the value how long script can execute in one tick without getting terminated after the tick ends.
 		/// </summary>
-		public uint ScriptTimeoutThreshold { get; set; }
+		public uint ScriptTimeoutThreshold
+		{
+			get => _scriptTimeoutThreshold;
+			// 0 or huge values (int cast to -1 = infinite) would freeze the game on a hung script
+			set => _scriptTimeoutThreshold = Math.Min(Math.Max(value, MinScriptTimeout), MaxScriptTimeout);
+		}
+		private uint _scriptTimeoutThreshold = 5000;
+		private const uint MinScriptTimeout = 100;
+		private const uint MaxScriptTimeout = 60000;
 
 		/// <summary>
 		/// Initializes the script domain inside its application domain.
@@ -573,6 +581,14 @@ namespace RDR2DN
 			}
 			else
 			{
+				// Only the script thread currently being resumed by DoTick may hand work to the main thread.
+				// Any other thread (Task.Run, timers, user threads) would corrupt the wait/continue lockstep.
+				Script executing = _executingScript;
+				if (executing == null || !executing.IsCurrentThread)
+				{
+					throw new InvalidOperationException("Native functions can only be called from a script's Tick/KeyUp/KeyDown handlers (not from other threads).");
+				}
+
 				// Request came from the script thread, so need to pass it to the domain thread and execute there
 				_taskQueue.Enqueue(task);
 

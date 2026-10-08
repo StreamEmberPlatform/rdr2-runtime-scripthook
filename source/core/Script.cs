@@ -146,11 +146,24 @@ namespace RDR2DN
 		}
 
 		/// <summary>
+		/// Gets whether the calling thread is this script's own thread.
+		/// </summary>
+		internal bool IsCurrentThread
+		{
+			get
+			{
+				Thread thread = _thread;
+				return thread != null && thread == Thread.CurrentThread;
+			}
+		}
+
+		/// <summary>
 		/// Starts execution of this script.
 		/// </summary>
 		public void Start()
 		{
 			_thread = new Thread(new ThreadStart(MainLoop));
+			_thread.IsBackground = true; // never keep the game process alive on exit
 			_thread.Start();
 
 			TextPoolInit();

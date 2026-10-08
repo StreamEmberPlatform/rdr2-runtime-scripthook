@@ -17,6 +17,10 @@ namespace RDR2
 		internal Global(int globalId)
 		{
 			address = RDR2DN.NativeMemory.GetGlobalPtr(globalId);
+			if (address == System.IntPtr.Zero)
+			{
+				throw new System.ArgumentOutOfRangeException(nameof(globalId), "Script global " + globalId + " is not available.");
+			}
 		}
 
 		public unsafe ulong* MemoryAddress => (ulong*)address.ToPointer();

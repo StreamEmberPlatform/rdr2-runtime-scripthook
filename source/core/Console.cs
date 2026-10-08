@@ -315,20 +315,25 @@ namespace RDR2DN
 			// Execute compiled input line script
 			if (_compilerTask != null && _compilerTask.IsCompleted)
 			{
-				if (_compilerTask.Result != null)
+				try
 				{
-					try
+					MethodInfo compiled = _compilerTask.Result;
+					if (compiled != null)
 					{
-						object result = _compilerTask.Result.Invoke(null, null);
+						object result = compiled.Invoke(null, null);
 						if (result != null)
 						{
 							PrintInfo($"[Return Value]: {result}");
 						}
 					}
-					catch (TargetInvocationException ex)
-					{
-						PrintError($"[Exception]: {ex.InnerException.ToString()}");
-					}
+				}
+				catch (TargetInvocationException ex)
+				{
+					PrintError($"[Exception]: {(ex.InnerException ?? ex).ToString()}");
+				}
+				catch (Exception ex)
+				{
+					PrintError($"[Exception]: {ex.ToString()}");
 				}
 
 				ClearInput();
