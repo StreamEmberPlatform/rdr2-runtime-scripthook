@@ -63,7 +63,9 @@ namespace RDR2DN
 		/// <summary>
 		/// Gets the path to the directory containing scripts.
 		/// </summary>
-		public string ScriptPath => System.IO.Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) + "\\scripts\\";
+		// StreamEmber: the domain's application base = ScriptsLocation from Runtime.ini (StreamEmber\Scripts by default).
+		// Upstream always used <asi folder>\scripts, ignoring the configured folder.
+		public string ScriptPath => AppDomain.BaseDirectory;
 
 		/// <summary>
 		/// Gets the application domain that is associated with this script domain.
