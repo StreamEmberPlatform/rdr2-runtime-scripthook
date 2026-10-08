@@ -33,3 +33,7 @@ Upgrade*.htm
 # Exclude Resharper user-defined settings
 *.sln.DotSettings.user
 *.user
+
+# StreamEmber
+/vendor/
+/builds/
