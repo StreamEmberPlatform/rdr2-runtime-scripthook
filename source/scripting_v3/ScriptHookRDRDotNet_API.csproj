@@ -27,6 +27,7 @@
     <FileVersion>$(SE_FILE_VERSION)</FileVersion>
     <Version>$(SE_VERSION)</Version>
     <InformationalVersion>$(SE_VERSION)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Authors>Halen84 &amp; Salty &amp; crosire &amp; kagikn &amp; contributors; Stream Ember Platform</Authors>
     <AssemblyTitle>StreamEmber Scripting API (RDR2)</AssemblyTitle>
     <Product>StreamEmber Runtime</Product>

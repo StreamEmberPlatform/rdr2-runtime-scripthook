@@ -87,12 +87,18 @@ function Find-Sdk {
     New-Item -ItemType Directory -Force -Path (Join-Path $Root 'vendor') | Out-Null
     Write-Host "Downloading $SdkUrl"
     Invoke-WebRequest -Uri $SdkUrl -OutFile $zip -Headers @{ Referer = $SdkReferer } -UseBasicParsing
-    Expand-Archive $zip -DestinationPath $target -Force
+    $extracted = "$target.extract"
+    if (Test-Path $extracted) { Remove-Item $extracted -Recurse -Force }
+    Expand-Archive $zip -DestinationPath $extracted -Force
     Remove-Item $zip -Force
-    # The archive may contain a top-level folder
-    $lib = Get-ChildItem $target -Recurse -File -Filter 'ScriptHookRDR2.lib' | Select-Object -First 1
+    # The archive may contain a top-level folder: move the SDK root (inc\, lib\) to vendor\<SdkName>, so the next run
+    # (and the CI cache) finds it directly
+    $lib = Get-ChildItem $extracted -Recurse -File -Filter 'ScriptHookRDR2.lib' | Select-Object -First 1
     if (-not $lib) { throw "ScriptHookRDR2.lib not found in the downloaded SDK." }
-    return (Split-Path (Split-Path $lib.FullName))
+    if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+    Move-Item (Split-Path (Split-Path $lib.FullName)) $target
+    if (Test-Path $extracted) { Remove-Item $extracted -Recurse -Force }
+    return $target
 }
 
 $sdk = Find-Sdk
