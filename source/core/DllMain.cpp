@@ -56,11 +56,11 @@ using namespace System::Collections::Generic;
 using namespace System::Reflection;
 namespace WinForms = System::Windows::Forms;
 
-[assembly:AssemblyTitle("StreamEmber Runtime (RDR2)")] ;
-[assembly:AssemblyDescription("StreamEmber .NET script runtime for Red Dead Redemption 2. Based on ScriptHookRDR2DotNet-V2.")] ;
-[assembly:AssemblyCompany("Stream Ember Platform")] ;
-[assembly:AssemblyProduct("StreamEmber Runtime")] ;
-[assembly:AssemblyCopyright("Copyright (c) 2015 crosire, (c) 2019 Salty, (c) Stream Ember Platform")] ;
+[assembly:AssemblyTitle("Stream Ember Runtime (RDR2)")] ;
+[assembly:AssemblyDescription("Stream Ember .NET script runtime for Red Dead Redemption 2.")] ;
+[assembly:AssemblyCompany("Stream Ember")] ;
+[assembly:AssemblyProduct("Stream Ember Runtime")] ;
+[assembly:AssemblyCopyright("Copyright (c) 2026 Stream Ember - Amiral Router")] ;
 // StreamEmber: versions come from Directory.Build.props (SE_VERSION) through the vcxproj
 [assembly:AssemblyVersion(SE_FILE_VERSION)] ;
 [assembly:AssemblyFileVersion(SE_FILE_VERSION)] ;
@@ -76,11 +76,11 @@ public:
 	[RDR2DN::ConsoleCommand("Print the default help")]
 	static void Help()
 	{
-		console->PrintInfo("~c~--- Help ---");
-		console->PrintInfo("The console accepts ~h~C# expressions~h~ as input and has full access to the scripting API. To print the result of an expression, simply add \"return\" in front of it.");
+		console->PrintInfo("~COLOR_GOLD~Help~COLOR_GREY~ | Stream Ember Runtime Console");
+		console->PrintInfo("The console accepts C# expressions as input and has full access to the scripting API. To print the result of an expression, simply add \"return\" in front of it.");
 		console->PrintInfo("You can use \"P\" as a shortcut for the player character and \"V\" for the current vehicle (without the quotes).");
 		console->PrintInfo("Example: \"return P.IsAlive\" will print a boolean value to the console indicating whether the player is currently alive.");
-		console->PrintInfo("~c~--- Commands ---");
+		console->PrintInfo("~COLOR_GOLD~Commands");
 		console->PrintHelpText();
 	}
 
@@ -99,7 +99,7 @@ public:
 	[RDR2DN::ConsoleCommand("Reload all scripts from the scripts directory")]
 	static void Reload()
 	{
-		console->PrintInfo("~y~Reloading ...");
+		console->PrintInfo("~COLOR_GOLD~Reloading ...");
 
 		// Force a reload on next tick
 		sGameReloaded = true;
@@ -150,9 +150,9 @@ public:
 	[RDR2DN::ConsoleCommand("List all loaded scripts")]
 	static void ListScripts()
 	{
-		console->PrintInfo("~c~--- Loaded Scripts ---");
+		console->PrintInfo("~COLOR_GOLD~Loaded scripts");
 		for each (auto script in domain->RunningScripts)
-			console->PrintInfo(IO::Path::GetFileName(script->FileName) + " ~h~" + script->Name + (script->IsRunning ? (script->IsPaused ? " ~o~[paused]" : " ~g~[running]") : " ~r~[aborted]"));
+			console->PrintInfo(IO::Path::GetFileName(script->FileName) + " " + script->Name + (script->IsRunning ? (script->IsPaused ? " ~COLOR_ORANGE~[paused]" : " ~COLOR_GREEN~[running]") : " ~COLOR_RED~[aborted]"));
 	}
 
 internal:
@@ -320,8 +320,8 @@ static void ScriptHookRDRDotNet_ManagedInit()
 		console->CommandHistory = stashedConsoleCommandHistory;
 
 		// Print welcome message
-		console->PrintInfo(String::Concat("~c~--- StreamEmber Runtime (RDR2) ", RDR2DN::StreamEmberLayout::ProductVersion, " ---"));
-		console->PrintInfo("~c~--- Type \"Help()\" to print an overview of available commands ---");
+		console->PrintInfo(String::Concat("~COLOR_GOLD~Stream Ember~s~ Runtime for Red Dead Redemption 2 ~COLOR_GREY~v", RDR2DN::StreamEmberLayout::ProductVersion, "  |  developed by Amiral Router | Stream Ember"));
+		console->PrintInfo("~COLOR_GREY~Type ~s~Help()~COLOR_GREY~ for the command overview.");
 
 		// Update console pointer in script domain
 		domain->AppDomain->SetData("Console", console);

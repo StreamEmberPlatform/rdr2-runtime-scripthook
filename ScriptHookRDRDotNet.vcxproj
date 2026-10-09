@@ -71,7 +71,7 @@
       <PreprocessorDefinitions>SE_FILE_VERSION="$(SE_FILE_VERSION)";SE_VERSION="$(SE_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <ResourceCompile>
-      <PreprocessorDefinitions>SE_VER_MAJOR=$(SE_VER_MAJOR);SE_VER_MINOR=$(SE_VER_MINOR);SE_VER_PATCH=$(SE_VER_PATCH);SE_VERSION_STR="$(SE_VERSION)";SE_FILE_VERSION_STR="$(SE_FILE_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>SE_VER_MAJOR=$(SE_VER_MAJOR);SE_VER_MINOR=$(SE_VER_MINOR);SE_VER_PATCH=$(SE_VER_PATCH);SE_VERSION_TOKEN=$(SE_VERSION);SE_FILE_VERSION_TOKEN=$(SE_FILE_VERSION);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <CsCompile>
       <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

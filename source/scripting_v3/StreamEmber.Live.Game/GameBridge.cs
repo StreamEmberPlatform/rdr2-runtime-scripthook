@@ -24,12 +24,12 @@ namespace StreamEmber.Live.Internal
         /// <summary>GET_CURRENT_LANGUAGE (0 English … 12 Simplified Chinese; same order as GTA V). Script thread.</summary>
         public static int LanguageId() => RDR2.Native.LOCALIZATION.GET_CURRENT_LANGUAGE();
 
-        /// <summary>Feed toast. Script thread.</summary>
-        public static void Notify(string message) =>
-            RDR2.UI.Feed.ShowToast("StreamEmber", message ?? string.Empty, "scoretimer_textures", "scoretimer_generic_tick", 4000);
+        /// <summary>System message: F4 console + small bottom-left status line (warning = orange, error = red). Script thread.</summary>
+        public static void Notify(string message, LiveLogLevel level = LiveLogLevel.Info) =>
+            RDR2DN.Console.Status(level == LiveLogLevel.Error ? 3 : level == LiveLogLevel.Warning ? 2 : 0, message);
 
-        /// <summary>Short on-screen line for an incoming action. Script thread.</summary>
-        public static void Announce(string message) => RDR2.UI.Screen.PrintSubtitle(message ?? string.Empty);
+        /// <summary>Incoming live action: F4 console + bottom-left status line instead of a large subtitle. Script thread.</summary>
+        public static void Announce(string message) => RDR2DN.Console.Status(1, message);
 
         public static void Log(LiveLogLevel level, string message)
         {

@@ -1,15 +1,18 @@
-// StreamEmber Runtime (RDR2) - Windows version resource.
+// Stream Ember Runtime (RDR2) - Windows version resource.
 // Values come from Directory.Build.props through ScriptHookRDRDotNet.vcxproj (ResourceCompile definitions).
 // ASCII only on purpose (no code page issues in rc.exe).
 
 #include "winres.h"
 
+#define SE_STRINGIZE_INNER(value) #value
+#define SE_STRINGIZE(value) SE_STRINGIZE_INNER(value)
+
 #ifndef SE_VER_MAJOR
 #define SE_VER_MAJOR 0
 #define SE_VER_MINOR 0
 #define SE_VER_PATCH 0
-#define SE_VERSION_STR "0.0.0-dev"
-#define SE_FILE_VERSION_STR "0.0.0.0"
+#define SE_VERSION_TOKEN 0.0.0-dev
+#define SE_FILE_VERSION_TOKEN 0.0.0.0
 #endif
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
@@ -31,14 +34,14 @@ BEGIN
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "CompanyName", "Stream Ember Platform"
-            VALUE "FileDescription", "StreamEmber .NET script runtime for Red Dead Redemption 2"
-            VALUE "FileVersion", SE_FILE_VERSION_STR
+            VALUE "CompanyName", "Stream Ember"
+            VALUE "FileDescription", "Stream Ember .NET script runtime for Red Dead Redemption 2"
+            VALUE "FileVersion", SE_STRINGIZE(SE_FILE_VERSION_TOKEN)
             VALUE "InternalName", "StreamEmber.Runtime.RDR2"
-            VALUE "LegalCopyright", "(c) 2015 crosire, (c) 2019 Salty; (c) Stream Ember Platform"
+            VALUE "LegalCopyright", "(c) 2026 Stream Ember - Amiral Router"
             VALUE "OriginalFilename", "StreamEmber.Runtime.RDR2.asi"
-            VALUE "ProductName", "StreamEmber Runtime"
-            VALUE "ProductVersion", SE_VERSION_STR
+            VALUE "ProductName", "Stream Ember Runtime"
+            VALUE "ProductVersion", SE_STRINGIZE(SE_VERSION_TOKEN)
         END
     END
     BLOCK "VarFileInfo"

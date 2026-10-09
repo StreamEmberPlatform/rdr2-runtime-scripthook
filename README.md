@@ -1,4 +1,4 @@
-# StreamEmber Runtime (RDR2)
+# Stream Ember Runtime (RDR2)
 
 Red Dead Redemption 2 için StreamEmber'in .NET script çalışma ortamı. Oyunun içinde .NET Framework 4.8'i başlatır,
 `StreamEmber\Scripts\` klasöründeki scriptleri yükler ve onlara `StreamEmber.Scripting.RDR2` API'sini verir.

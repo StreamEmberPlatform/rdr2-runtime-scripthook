@@ -1,7 +1,7 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    StreamEmber Runtime (RDR2): build, package and (optionally) install.
+    Stream Ember Runtime (RDR2): build, package and (optionally) install.
 
 .DESCRIPTION
     1. ScriptHookRDR2 SDK: sdk\inc\main.h + sdk\lib\ScriptHookRDR2.lib, kept in the repository (sdk\README.md).
@@ -46,7 +46,7 @@ $Preserve = @('StreamEmber/Config/Runtime.ini')
 
 # --- Build ------------------------------------------------------------------------------------------------------
 if (-not $Version) { $Version = Get-SEVersion -RepositoryRoot $Root -Kind Dev }
-Write-Host "StreamEmber Runtime (RDR2) $Version" -ForegroundColor Cyan
+Write-Host "Stream Ember Runtime (RDR2) $Version" -ForegroundColor Cyan
 
 $msbuild = Find-SEMSBuild
 Write-Host "MSBuild: $msbuild"
@@ -68,7 +68,7 @@ Copy-Item (Join-Path $bin 'StreamEmber.Scripting.RDR2.dll') $runtimeDir
 Copy-Item (Join-Path $Root 'package\Config\Runtime.ini') $configDir
 Copy-Item (Join-Path $Root 'LICENSE') (Join-Path $licenseDir 'LICENSE.txt')
 
-New-SEManifest -StageDirectory $stage -Id $Id -Name 'StreamEmber Runtime (RDR2)' -Version $Version -Game $Game `
+New-SEManifest -StageDirectory $stage -Id $Id -Name 'Stream Ember Runtime (RDR2)' -Version $Version -Game $Game `
     -Preserve $Preserve -Conflicts $Conflicts -RepositoryRoot $Root `
     -Requires @([ordered]@{ file = 'ScriptHookRDR2.dll'; name = 'Script Hook RDR2 (Alexander Blade)'; url = 'http://www.dev-c.com/rdr2/scripthookrdr2/' },
                 [ordered]@{ file = 'dinput8.dll'; name = 'ASI Loader (Script Hook RDR2 package)'; url = 'http://www.dev-c.com/rdr2/scripthookrdr2/' }) | Out-Null

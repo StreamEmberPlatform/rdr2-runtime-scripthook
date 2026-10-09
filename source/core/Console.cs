@@ -34,16 +34,34 @@ namespace RDR2DN
 		private const int BaseWidth = 1280;
 		private const int BaseHeight = 720;
 		private const int ConsoleWidth = BaseWidth;
-		private const int ConsoleHeight = BaseHeight / 3;
+		private const int HeaderHeight = 22;
+		private const int LineHeight = 14;
+		private const int ConsoleHeight = HeaderHeight + LinesPerPage * LineHeight + 6;
 		private const int InputHeight = 20;
+		private const int InputX = 28;
 		private const int LinesPerPage = 16;
+		private const float StatusScale = 0.25f;
 
-		static readonly Color s_inputColor = Color.White;
-		static readonly Color s_inputColorBusy = Color.DarkGray;
-		static readonly Color s_outputColor = Color.White;
-		static readonly Color s_prefixColor = Color.FromArgb(255, 189, 216, 216);
-		static readonly Color s_backgroundColor = Color.FromArgb(120, Color.Black);
-		static readonly Color s_altBackgroundColor = Color.FromArgb(120, 180, 15, 15);
+		// Stream Ember palette (MHud "modern" theme, amber accent)
+		static readonly Color s_backgroundColor = Color.FromArgb(222, 11, 14, 19);
+		static readonly Color s_headerColor = Color.FromArgb(238, 20, 25, 33);
+		static readonly Color s_lineColor = Color.FromArgb(26, 255, 255, 255);
+		static readonly Color s_accentColor = Color.FromArgb(255, 245, 184, 61);
+		static readonly Color s_accentGlowColor = Color.FromArgb(150, 255, 122, 69);
+		static readonly Color s_inputColor = Color.FromArgb(255, 240, 243, 247);
+		static readonly Color s_inputColorBusy = Color.FromArgb(117, 240, 243, 247);
+		static readonly Color s_outputColor = Color.FromArgb(255, 240, 243, 247);
+		static readonly Color s_mutedColor = Color.FromArgb(184, 240, 243, 247);
+		static readonly Color s_faintColor = Color.FromArgb(117, 240, 243, 247);
+		// Status line tones: 0 system, 1 live action, 2 warning, 3 error
+		static readonly Color[] s_statusColors =
+		{
+			Color.FromArgb(255, 77, 166, 255), Color.FromArgb(255, 245, 184, 61),
+			Color.FromArgb(255, 255, 176, 32), Color.FromArgb(255, 255, 77, 90),
+		};
+		static readonly string[] s_statusLabels = { "SYS", "LIVE", "WARN", "ERROR" };
+		static readonly string[] s_statusHeaders = { "~COLOR_BLUE~INFO~s~ ", "~COLOR_GOLD~LIVE~s~ ", "~COLOR_ORANGE~WARN~s~ ", "~COLOR_RED~ERROR~s~ " };
+		private volatile Tuple<string, int, int> _status; // text, level, tick
 
 		[DllImport("user32.dll")]
 		static extern int ToUnicode(
@@ -145,9 +163,44 @@ namespace RDR2DN
 		/// </summary>
 		/// <param name="prefix">The prefix for each line.</param>
 		/// <param name="messages">The lines to add to the console.</param>
+		/// <summary>
+		/// Shows the latest runtime/Live event in the small bottom-left status line while the console is closed.
+		/// <paramref name="level"/>: 0 system, 1 live action, 2 warning, 3 error.
+		/// </summary>
+		public void SetStatus(string text, int level)
+		{
+			level = System.Math.Max(0, System.Math.Min(3, level));
+			_status = Tuple.Create(DateTime.Now.ToString("HH:mm:ss") + "  " + (text ?? string.Empty), level, Environment.TickCount);
+		}
+
+		/// <summary>Writes a Live/runtime message to the console and the bottom-left status line. Script thread.</summary>
+		public static void Status(int level, string text)
+		{
+			var console = AppDomain.CurrentDomain.GetData("Console") as Console;
+			if (console == null) return;
+			level = System.Math.Max(0, System.Math.Min(3, level));
+			text = (text ?? string.Empty).Replace("~", string.Empty); // viewer names must not inject text formatting
+			console.AddLines(s_statusHeaders[level], new[] { text });
+			console.SetStatus(text, level);
+		}
+
+		private void DrawStatus(int nowTickCount)
+		{
+			var status = _status;
+			if (status == null) return;
+			// Warnings and errors stay until replaced; system lines and actions fade to a faint trace after 8 s.
+			bool fresh = status.Item2 >= 2 || nowTickCount - status.Item3 < 8000;
+			Color tone = s_statusColors[status.Item2];
+			int alpha = fresh ? 235 : 110;
+			float y = BaseHeight - 18;
+			DrawRect(8, y + 3, 2, 11, Color.FromArgb(alpha, tone));
+			DrawText(14, y, s_statusLabels[status.Item2], Color.FromArgb(alpha, tone), StatusScale);
+			DrawText(52, y, status.Item1, Color.FromArgb(fresh ? 215 : 100, 240, 243, 247), StatusScale);
+		}
+
 		private void AddLines(string prefix, string[] messages)
 		{
-			AddLines(prefix, messages, "~w~");
+			AddLines(prefix, messages, "~s~");
 		}
 		/// <summary>
 		/// Add colored text lines to the console. This call is thread-safe.
@@ -159,7 +212,7 @@ namespace RDR2DN
 		{
 			for (int i = 0; i < messages.Length; i++) // Add proper styling
 			{
-				messages[i] = $"~c~[{DateTime.Now.ToString("HH:mm:ss")}] ~w~{prefix} {color}{messages[i]}";
+				messages[i] = $"~COLOR_GREY~{DateTime.Now.ToString("HH:mm:ss")}~s~  {prefix} {color}{messages[i]}";
 			}
 
 			_outputQueue.Enqueue(messages);
@@ -218,7 +271,7 @@ namespace RDR2DN
 				msg = String.Format(msg, args);
 			}
 			
-			AddLines("[~COLOR_BLUE~INFO~s~] ", msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+			AddLines(s_statusHeaders[0], msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
 		}
 		/// <summary>
 		/// Writes an error message to the console.
@@ -232,7 +285,7 @@ namespace RDR2DN
 				msg = String.Format(msg, args);
 			}
 			
-			AddLines("[~COLOR_RED~ERROR~s~] ", msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+			AddLines(s_statusHeaders[3], msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
 		}
 		/// <summary>
 		/// Writes a warning message to the console.
@@ -246,7 +299,7 @@ namespace RDR2DN
 				msg = String.Format(msg, args);
 			}
 			
-			AddLines("[~COLOR_YELLOW~WARNING~s~] ", msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
+			AddLines(s_statusHeaders[2], msg.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries));
 		}
 
 		/// <summary>
@@ -260,7 +313,7 @@ namespace RDR2DN
 				help.AppendLine($"[{space}]");
 				foreach (ConsoleCommand command in _commands[space])
 				{
-					help.Append("    ~h~" + command.Name + "(");
+					help.Append("    " + command.Name + "(");
 					foreach (ParameterInfo arg in command.MethodInfo.GetParameters())
 					{
 						help.Append(arg.ParameterType.Name + " " + arg.Name + ",");
@@ -273,11 +326,11 @@ namespace RDR2DN
 
 					if (command.Help.Length > 0)
 					{
-						help.AppendLine(")~h~: " + command.Help);
+						help.AppendLine("): " + command.Help);
 					}
 					else
 					{
-						help.AppendLine(")~h~");
+						help.AppendLine(")");
 					}
 				}
 			}
@@ -354,6 +407,8 @@ namespace RDR2DN
 
 			if (!IsOpen)
 			{
+				DrawStatus(nowTickCount);
+
 				// Hack so the input gets blocked long enough
 				if ((_lastClosedTickCount - nowTickCount) > 0)
 				{
@@ -373,31 +428,43 @@ namespace RDR2DN
 			// Disable controls while the console is open
 			DisableControlsThisFrame();
 
-			// Draw background
+			bool busy = _compilerTask != null;
+			int pages = System.Math.Max(1, (_lineHistory.Count + (LinesPerPage - 1)) / LinesPerPage);
+
+			// Panel and header
 			DrawRect(0, 0, ConsoleWidth, ConsoleHeight, s_backgroundColor);
-			// Draw input field
-			DrawRect(0, ConsoleHeight, ConsoleWidth, InputHeight, s_altBackgroundColor);
-			DrawRect(0, ConsoleHeight + InputHeight, 80, InputHeight, s_altBackgroundColor);
-			// Draw input prefix
-			DrawText(0, ConsoleHeight, "$>", s_prefixColor);
-			// Draw input text
-			DrawText(25, ConsoleHeight, _input, _compilerTask == null ? s_inputColor : s_inputColorBusy);
-			// Draw page information
-			DrawText(5, ConsoleHeight + InputHeight, "Page " + _currentPage + "/" + System.Math.Max(1, ((_lineHistory.Count + (LinesPerPage - 1)) / LinesPerPage)), s_inputColor);
+			DrawRect(0, 0, ConsoleWidth, HeaderHeight, s_headerColor);
+			DrawRect(0, 0, 3, HeaderHeight, s_accentColor);
+			DrawRect(0, HeaderHeight, ConsoleWidth, 1, s_lineColor);
+			DrawText(12, 2, "STREAM EMBER", s_accentColor);
+			DrawText(122, 2, "Runtime Console   |   Red Dead Redemption 2   |   v" + StreamEmberLayout.ProductVersion, s_mutedColor);
+			DrawText(ConsoleWidth - 210, 2, "Page " + _currentPage + "/" + pages + "   |   PgUp / PgDn", s_faintColor);
 
-			// Draw blinking cursor
-			if (nowTickCount % 1000 < 500)
-			{
-				float lengthBetweenInputStartAndCursor = GetTextLength(_input.Substring(0, _cursorPos)) - GetMarginLength();
-				DrawRect(26 + (lengthBetweenInputStartAndCursor * ConsoleWidth), ConsoleHeight + 2, 2, InputHeight - 4, Color.White);
-			}
-
-			// Draw console history text
+			// Console history text
 			int historyOffset = _lineHistory.Count - (LinesPerPage * _currentPage);
 			int historyLength = historyOffset + LinesPerPage;
 			for (int i = System.Math.Max(0, historyOffset); i < historyLength; ++i)
 			{
-				DrawText(2, (float)((i - historyOffset) * 14), _lineHistory[i], s_outputColor);
+				DrawText(12, HeaderHeight + 3 + (i - historyOffset) * LineHeight, _lineHistory[i], s_outputColor);
+			}
+
+			// Input field with accent rule underneath
+			DrawRect(0, ConsoleHeight, ConsoleWidth, 1, s_lineColor);
+			DrawRect(0, ConsoleHeight + 1, ConsoleWidth, InputHeight, s_headerColor);
+			DrawRect(0, ConsoleHeight + 1, 3, InputHeight, busy ? s_faintColor : s_accentColor);
+			DrawRect(0, ConsoleHeight + 1 + InputHeight, ConsoleWidth, 2, s_accentGlowColor);
+			DrawText(12, ConsoleHeight + 1, ">", s_accentColor);
+			DrawText(InputX, ConsoleHeight + 1, _input, busy ? s_inputColorBusy : s_inputColor);
+			if (busy)
+			{
+				DrawText(ConsoleWidth - 110, ConsoleHeight + 1, "compiling...", s_mutedColor);
+			}
+
+			// Blinking cursor
+			if (nowTickCount % 1000 < 500)
+			{
+				float lengthBetweenInputStartAndCursor = GetTextLength(_input.Substring(0, _cursorPos)) - GetMarginLength();
+				DrawRect(InputX + 1 + (lengthBetweenInputStartAndCursor * ConsoleWidth), ConsoleHeight + 4, 2, InputHeight - 6, s_accentColor);
 			}
 		}
 		/// <summary>
@@ -1114,11 +1181,11 @@ namespace RDR2DN
 				color.R, color.G, color.B, color.A, true, 0);
 		}
 
-		private static unsafe void DrawText(float x, float y, string text, Color color)
+		private static unsafe void DrawText(float x, float y, string text, Color color, float scale = 0.35f)
 		{
 			float fX = x / (float)BaseWidth;
 			float fY = y / (float)BaseHeight;
-			NativeFunc.Invoke(0xA1253A3C870B6843  /*UIDEBUG::_BG_SET_TEXT_SCALE*/, 0.35f, 0.35f);
+			NativeFunc.Invoke(0xA1253A3C870B6843  /*UIDEBUG::_BG_SET_TEXT_SCALE*/, scale, scale);
 			NativeFunc.Invoke(0x16FA5CE47F184F1E  /*UIDEBUG::_BG_SET_TEXT_COLOR*/, color.R, color.G, color.B, color.A);
 			var res = NativeFunc.Invoke(0xFA925AC00EB830B9  /*MISC::VAR_STRING*/, 10, "LITERAL_STRING", text);
 			NativeFunc.Invoke(0x16794E044C9EFB58  /*UIDEBUG::_BG_DISPLAY_TEXT*/, *res, fX, fY);

@@ -1,4 +1,4 @@
-# StreamEmber Runtime (RDR2) — ajan notları
+# Stream Ember Runtime (RDR2) — ajan notları
 
 - Önce `README.md`. Bu repo ScriptHookRDR2DotNet-V2'nin fork'udur; upstream dosyalarını gerekmedikçe değiştirme, değiştirdiğin yeri
   `StreamEmber:` yorumuyla işaretle (upstream birleştirmeleri kolay kalsın).
