@@ -3,6 +3,9 @@
 Sürümler `VERSION` (major.minor) + commit sayısı (patch) ile otomatik verilir; her `main` push'u bir sürümdür.
 Burada yalnız kayda değer değişiklikler tutulur.
 
+## Yayımlanmamış — 2026-10-09
+- Deneysel Thread modeli güvenli Fiber yoluna düşürülür. Native ağırlıklı döngüler için tick bütçesi; Live kuyruğu 2048 ve tick başına 25 aksiyonla sınırlıdır.
+
 ## 1.2
 - StreamEmber Live (`StreamEmber.Live`): canlı yayın modları için gömülü EventFabric/GCore bağlantısı, Falcon ayarları,
   presence ve Identity v2. Modlar `LiveScript`'ten türer; aksiyonlar `On(…)`, `[LiveAction]`, `ActionReceived` ile gelir.

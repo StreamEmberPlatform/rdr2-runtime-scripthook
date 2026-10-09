@@ -613,6 +613,10 @@ namespace RDR2DN
 		/// <param name="task">The task to execute.</param>
 		public void ExecuteTask(IScriptTask task)
 		{
+            // StreamEmber: enforce a whole-tick budget, even if each native handoff succeeds quickly.
+            if (_executingScript != null && _executingScript.IsCurrentThread && _streamEmberTickStarted != 0 && !IsDebuggerPresent() &&
+                (System.Diagnostics.Stopwatch.GetTimestamp() - _streamEmberTickStarted) * 1000.0 / System.Diagnostics.Stopwatch.Frequency > ScriptTimeoutThreshold)
+                throw new TimeoutException("Script exceeded its tick budget. Split work across ticks with Script.Yield().");
 			if (_tlsContextSwitchEnabled)
 			{
 				ExecuteTaskWithGameThreadTlsContext(task);
@@ -696,7 +700,9 @@ namespace RDR2DN
 		/// <summary>
 		/// Main execution logic of the script domain.
 		/// </summary>
-		public void DoTick()
+        private long _streamEmberTickStarted;
+
+        public void DoTick()
 		{
 			// Execute running scripts
 			for (int i = 0; i < _runningScripts.Count; i++)
@@ -710,6 +716,7 @@ namespace RDR2DN
 				}
 
 				_executingScript = script;
+				_streamEmberTickStarted = System.Diagnostics.Stopwatch.GetTimestamp();
 
 				bool finishedInTime = true;
 

@@ -21,6 +21,8 @@ namespace StreamEmber.Live.Internal
     {
         private const int RememberedIds = 4096;
         private const int ActionsPerTick = 25;
+        private const int MaxPendingActions = 2048;
+        private static int _overflowCount;
 
         private static readonly object Gate = new object();
         private static readonly List<LiveScript> Registered = new List<LiveScript>();
@@ -89,7 +91,7 @@ namespace StreamEmber.Live.Internal
             if (Active.Count == 0 || script != Active[0]) return;
 
             LiveLog.Flush();
-            while (MainThread.TryDequeue(out Action work))
+            for (int budget = 0; budget < 32 && MainThread.TryDequeue(out Action work); budget++)
             {
                 try
                 {
@@ -486,11 +488,19 @@ namespace StreamEmber.Live.Internal
             if (id.Length == 0) return;
             lock (Seen)
             {
-                if (!Seen.Add(id)) return;
+                if (Seen.Contains(id)) return;
+                // StreamEmber: bound replay/event bursts; keep accepted actions in FIFO order.
+                if (Incoming.Count >= MaxPendingActions)
+                {
+                    if (++_overflowCount == 1 || _overflowCount % 100 == 0)
+                        LiveLog.Warn("Live action queue full; rejected " + _overflowCount + " action(s). Reduce event rate.");
+                    return;
+                }
+                Seen.Add(id);
                 SeenOrder.Enqueue(id);
                 while (SeenOrder.Count > RememberedIds) Seen.Remove(SeenOrder.Dequeue());
+                Incoming.Enqueue(json);
             }
-            Incoming.Enqueue(json);
         }
 
         /// <summary>Script thread.</summary>

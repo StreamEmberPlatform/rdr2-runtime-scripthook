@@ -690,7 +690,11 @@ BOOL WINAPI DllMain(HMODULE hModule, DWORD fdwReason, LPVOID lpvReserved)
 		if (!GetModuleHandle(TEXT("clr.dll")))
 			ForceCLRInit();
 		sModule = hModule;
-		sUseClrThread = ReadUseClrThread(hModule);
+		// StreamEmber: the experimental TLS borrowing model cannot safely recover a native timeout.
+		// Keep the supported fiber model until that path has an in-game validated cancellation protocol.
+		if (ReadUseClrThread(hModule))
+			WriteRuntimeLogLine("[WARN] ThreadingModel=Thread is disabled for safety; using Fiber.\r\n");
+		sUseClrThread = false;
 		if (sUseClrThread)
 		{
 			hClrContinueEvent.store(CreateEvent(NULL, FALSE, FALSE, NULL), std::memory_order_relaxed);

@@ -74,7 +74,7 @@ Visual Studio 2022+ ("Desktop development with C++" + C++/CLI desteği), .NET Fr
 | Değişiklik | Neden |
 |---|---|
 | Adlar ve klasör düzeni (`StreamEmberLayout.cs`), `.pdb`/`.xml` yok, sürüm kaynağı (`.rc`) | StreamEmber dağıtımı |
-| **Ayrı CLR thread'i** (ScriptHookVDotNet 3.7 modeli), **deneysel, varsayılan kapalı**: `Runtime.ini` → `ThreadingModel=Thread`. Managed kod kendi thread'inde çalışır, native'ler oyun thread'inin TLS bağlamıyla doğrudan çağrılır. İlk oyun testinde trainer native çağırmaya başlayınca oyun ~30 sn içinde kapandı; sebebi bulunana kadar varsayılan `Fiber` | Hedef: fiber üzerindeki CLR çökmeleri (scripthookvdotnet#976), checkpoint tekrarında kopma (upstream #17), native başına thread devri |
+| **Ayrı CLR thread modeli kapalı:** `ThreadingModel=Thread` uyarı yazar ve `Fiber` kullanır; native hâlâ çalışırken oyunu devam ettiren timeout yolu kullanılmaz | Oyun thread'iyle eşzamanlı native çalıştırma riskini önler |
 | Scriptler `Runtime.ini` → `ScriptsLocation` klasöründen yüklenir (upstream her zaman `<oyun>\scripts`'e bakıyordu) | `StreamEmber\Scripts` hiç yüklenmiyordu |
 | `World.GetAllPeds/Vehicles/Objects` ScriptHookRDR2 havuz fonksiyonlarını native'lerin çalıştığı yerde çağırır | Script thread'inden çağrılınca oyunun thread durumu bozuluyordu: rastgele erişim ihlalleri, bir süre sonra hep boş sonuç (upstream #2; "uzun oynayınca/çok NPC ölünce kimse bulunamıyor") |
 | `World.GetNearbyPeds/Vehicles/Props` (oyunun kendi uzamsal sorgusu, itemset) | Her kare "etrafımdaki varlıklar" için tüm havuzu dolaşmadan; itemset her durumda serbest bırakılır |
