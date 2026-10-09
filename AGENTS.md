@@ -11,3 +11,5 @@
 - Kullanıcıya görünen metinler Türkçe; kod, tanımlayıcılar ve kod yorumları İngilizce.
 - ScriptHookRDR2 SDK'sının yalnız kullanılan dosyaları `sdk/` içindedir (main.h, ScriptHookRDR2.lib); derleme dışarıdan
   bir şey indirmez. `ScriptHookRDR2.dll` hiçbir pakete konmaz.
+- `source/scripting_v3/StreamEmber.Live/` iki runtime'da (gtav-runtime-scripthook, rdr2-runtime-scripthook) birebir aynı
+  tutulur; oyuna özgü kod yalnız `source/scripting_v3/StreamEmber.Live.Game/GameBridge.cs`. `docs/StreamEmber-Live.md` de aynıdır.

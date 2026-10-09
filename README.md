@@ -31,6 +31,14 @@ ScriptHookRDR2DotNet ile birlikte kullanılmaz: kurulum `ScriptHookRDRDotNet.asi
 > Topluluğun ScriptHookRDR2DotNet scriptleri (`ScriptHookRDRNetAPI.dll`'e göre derlenmiş) bu çalışma ortamında
 > yüklenmez; scriptler `StreamEmber.Scripting.RDR2.dll`'e göre derlenir (`using RDR2;`).
 
+## Canlı yayın modları (StreamEmber Live)
+
+Script API'si canlı yayın katmanını içerir: EventFabric/GCore bağlantısı, Falcon oyun ayarları ve Identity v2 kimliği.
+Canlı yayın modu `StreamEmber.Live.LiveScript`'ten türer ve aksiyonları Tick gibi olaylarla alır (`On("enemy.spawn", …)`,
+`[LiveAction]`, `ActionReceived`, `SettingsChanged`); HTTP yazmaz, ayrı bir core DLL'i taşımaz. Okuma customer UUID ile,
+EventFabric'e yazma (presence, GCore reset) yalnız Launcher'ın verdiği runtime token ile yapılır. Ayarlar `Runtime.ini` →
+`Live*` anahtarları. Ayrıntı: [docs/StreamEmber-Live.md](docs/StreamEmber-Live.md).
+
 ## Sürümler ve yayın
 
 - Sürüm: `VERSION` dosyası `major.minor`, patch = o dosyanın son değiştiği commit'ten bu yana commit sayısı.
@@ -84,6 +92,7 @@ Visual Studio 2022+ ("Desktop development with C++" + C++/CLI desteği), .NET Fr
 | `ScriptTimeoutThreshold` 100–60000 ms | `(int)uint` dönüşümü sonsuz bekleme olabiliyordu |
 | `StringToCoTaskMemUTF8` → `AllocCoTaskMem` | Heap uyuşmazlığı |
 | Script thread'leri arka plan thread'i, `Console.DoTick` hata yakalar, `Global` boş işaretçi kontrolü | Kapanış ve çökme güvenliği |
+| `source/scripting_v3/StreamEmber.Live/`, `StreamEmber.Live.Game/` (1.2) | Canlı yayın katmanı (EventFabric, Falcon ayarları, Identity v2); iki runtime'da aynı kod: [docs/StreamEmber-Live.md](docs/StreamEmber-Live.md) |
 
 
 ## Lisans
